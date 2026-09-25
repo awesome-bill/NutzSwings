@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fairway Notebook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <a class="brand" href="#dashboard" aria-label="Fairway Notebook home">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M7 21V3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M7 4l11 4-11 4z" fill="var(--flag)"/><ellipse cx="11" cy="21" rx="7" ry="1.6" fill="currentColor" opacity=".25"/></svg>
+      <span>Fairway Notebook</span>
+    </a>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#dashboard" data-view="dashboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Dashboard</span></a>
+      <a href="#rounds" data-view="rounds"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Rounds</span></a>
+      <a href="#practice" data-view="practice"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg><span>Practice</span></a>
+      <a href="#workouts" data-view="workouts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/></svg><span>Workouts</span></a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- DASHBOARD -->
+  <section id="view-dashboard" class="view" aria-labelledby="dash-title">
+    <div class="view-head"><h1 id="dash-title">Dashboard</h1><p class="sub" id="dash-sub"></p></div>
+    <div id="example-banner" class="banner" hidden>
+      <p>You're looking at <strong>example data</strong> so you can see how everything works.</p>
+      <button type="button" class="btn small" id="clear-examples">Remove examples</button>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="dash-grid">
+      <article class="panel"><h2>Scoring trend</h2><p class="hint">Last 10 eighteen-hole rounds</p><div id="trend"></div></article>
+      <article class="panel"><h2>Practice, last 30 days</h2><p class="hint">Minutes by area</p><div id="practice-bars"></div></article>
+      <article class="panel"><h2>Last 7 days</h2><div id="week"></div></article>
+      <article class="panel"><h2>Recent activity</h2><ul class="feed" id="feed"></ul></article>
+    </div>
+    <article class="panel data-panel">
+      <h2>Your data</h2>
+      <p class="hint" id="storage-note"></p>
+      <div class="row-actions">
+        <button type="button" class="btn" id="copy-backup">Copy backup</button>
+        <button type="button" class="btn" id="show-restore">Restore from backup</button>
+        <button type="button" class="btn danger" id="erase-all">Erase everything</button>
+      </div>
+      <div id="restore-box" hidden>
+        <label for="restore-text">Paste a backup you copied earlier</label>
+        <textarea id="restore-text" rows="4"></textarea>
+        <div class="row-actions"><button type="button" class="btn primary" id="do-restore">Restore</button></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ROUNDS -->
+  <section id="view-rounds" class="view" hidden aria-labelledby="rounds-title">
+    <div class="view-head"><h1 id="rounds-title">Rounds</h1><button type="button" class="btn primary" data-open="round-form">New round</button></div>
+    <form id="round-form" class="panel entry" hidden novalidate>
+      <h2>New round</h2>
+      <div class="fields">
+        <label>Date<input type="date" id="r-date" required></label>
+        <label>Course<input type="text" id="r-course" list="course-list" required placeholder="Pine Hollow GC" autocomplete="off"></label>
+        <label>Tees<input type="text" id="r-tees" placeholder="White"></label>
+        <fieldset class="seg"><legend>Holes</legend>
+          <label><input type="radio" name="r-holes" id="r-holes-18" value="18" checked><span>18</span></label>
+          <label><input type="radio" name="r-holes" id="r-holes-9" value="9"><span>9</span></label>
+        </fieldset>
+      </div>
+      <datalist id="course-list"></datalist>
+      <p class="hint">Green in regulation is worked out for you: on the green in par minus two strokes.</p>
+      <div class="table-scroll">
+        <table class="entry-card">
+          <thead><tr><th>Hole</th><th>Par</th><th>Score</th><th>Putts</th><th>Fairway</th><th>GIR</th></tr></thead>
+          <tbody id="r-holes-body"></tbody>
+          <tfoot><tr id="r-totals"></tr></tfoot>
+        </table>
+      </div>
+      <label>Notes<textarea id="r-notes" rows="2" placeholder="Wind, what worked, what to practice"></textarea></label>
+      <div class="form-actions"><button type="button" class="btn ghost" data-close="round-form">Cancel</button><button type="submit" class="btn primary">Save round</button></div>
+    </form>
+    <div id="round-list" class="list"></div>
+  </section>
+
+  <!-- PRACTICE -->
+  <section id="view-practice" class="view" hidden aria-labelledby="practice-title">
+    <div class="view-head"><h1 id="practice-title">Practice</h1><button type="button" class="btn primary" data-open="practice-form">Log session</button></div>
+    <form id="practice-form" class="panel entry" hidden novalidate>
+      <h2>Practice session</h2>
+      <div class="fields">
+        <label>Date<input type="date" id="p-date" required></label>
+        <label>Area<select id="p-area"></select></label>
+        <label>Minutes<input type="number" id="p-minutes" min="1" max="600" inputmode="numeric" required placeholder="45"></label>
+        <label>Balls hit<input type="number" id="p-balls" min="0" max="2000" inputmode="numeric" placeholder="0"></label>
+      </div>
+      <label>Drill or focus<input type="text" id="p-focus" placeholder="50/75/100 yd carry ladder"></label>
+      <fieldset class="rating"><legend>How it went</legend><div id="p-rating"></div></fieldset>
+      <label>Notes<textarea id="p-notes" rows="2"></textarea></label>
+      <div class="form-actions"><button type="button" class="btn ghost" data-close="practice-form">Cancel</button><button type="submit" class="btn primary">Save session</button></div>
+    </form>
+    <div id="practice-list" class="list"></div>
+  </section>
+
+  <!-- WORKOUTS -->
+  <section id="view-workouts" class="view" hidden aria-labelledby="workouts-title">
+    <div class="view-head"><h1 id="workouts-title">Workouts</h1><button type="button" class="btn primary" data-open="workout-form">Log workout</button></div>
+    <form id="workout-form" class="panel entry" hidden novalidate>
+      <h2>Workout</h2>
+      <div class="fields">
+        <label>Date<input type="date" id="w-date" required></label>
+        <label>Type<select id="w-type"></select></label>
+        <label>Minutes<input type="number" id="w-minutes" min="1" max="600" inputmode="numeric" required placeholder="45"></label>
+      </div>
+      <div class="ex-head"><span>Exercise</span><span>Sets</span><span>Reps</span><span>Load</span><span></span></div>
+      <div id="w-exercises" class="ex-rows"></div>
+      <datalist id="exercise-list"></datalist>
+      <button type="button" class="btn small" id="add-exercise">Add exercise</button>
+      <label>Notes<textarea id="w-notes" rows="2"></textarea></label>
+      <div class="form-actions"><button type="button" class="btn ghost" data-close="workout-form">Cancel</button><button type="submit" class="btn primary">Save workout</button></div>
+    </form>
+    <div id="workout-list" class="list"></div>
+  </section>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
