@@ -466,14 +466,17 @@
     const rows = csvRows(text.replace(/^﻿/, ''));
     const out = { fresh: [], updates: [], unchanged: 0, bad: [], error: null };
     if (!rows.length) return out;
-    const header = rows[0].map((h) => h.toLowerCase());
     const col = {};
+    // No header row (e.g. only the data lines were copied)? If the first row starts with a date, assume GHIN's standard column order.
+    const hasHeader = !parseDate(rows[0][0] || '');
+    const header = hasHeader ? rows[0].map((h) => h.toLowerCase()) : Object.keys(GHIN_COLUMNS);
     header.forEach((h, i) => { if (GHIN_COLUMNS[h]) col[GHIN_COLUMNS[h]] = i; });
     const missing = GHIN_REQUIRED.filter((k) => col[GHIN_COLUMNS[k]] == null);
     if (missing.length) { out.error = `This doesn’t look like a GHIN export. It needs the header row with ${missing.map((k) => `“${k[0].toUpperCase() + k.slice(1)}”`).join(', ')}.`; return out; }
     const get = (r, key) => (col[key] == null ? '' : r[col[key]] ?? '');
-    rows.slice(1).forEach((r, i) => {
-      const line = i + 2;
+    const dataRows = hasHeader ? rows.slice(1) : rows;
+    dataRows.forEach((r, i) => {
+      const line = i + (hasHeader ? 2 : 1);
       const date = parseDate(get(r, 'date'));
       const course = get(r, 'course');
       const count = parseInt(get(r, 'holes'), 10);
