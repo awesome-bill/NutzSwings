@@ -34,12 +34,17 @@ Free Supabase projects pause after about a week without any use. If the app says
 
 Use the live version at https://awesome-bill.github.io/NutzSwings/. To try changes on your computer, run a local web server in the folder (for example `python -m http.server`) and open http://localhost:8000. It signs in to the same database.
 
+## Releasing a change
+
+`index.html` loads `styles.css`, `config.js` and `app.js` with a version on the end (for example `app.js?v=2.0.1`). When any of those files change, bump that number in all three places. Browsers then download the new files instead of reusing old copies, which can otherwise mix old and new code and leave a blank page.
+
 ## Changelog
 
 - **v1**: Dashboard, rounds, practice, and workouts, with example data and backup/restore.
 - **v1.1**: Total-only rounds (date, course, tees, score, optional par and differential) and **Import scores** on the Rounds page for pasting in history such as GHIN. Scoring average and trend use every round; putts, greens and fairways use hole-by-hole rounds only.
 - **v1.2**: Import reads the GHIN export directly (choose the file or paste it) and keeps score type, course rating, slope, PCC, differential and Used in Handicap. Re-importing updates existing rounds.
 - **v2.0**: Data moves to a Supabase database with email/password sign-in, so it's the same on every device. One-tap move of data saved in the browser by earlier versions. Example data removed.
+- **v2.0.1**: Versioned file links so browsers always load matching files after an update.
 
 ## Importing from GHIN
 
