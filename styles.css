@@ -85,6 +85,16 @@ a { color: var(--green); }
 .file-pick input[type="file"] { font: 400 .95rem var(--body); color: var(--ink); }
 .file-pick input[type="file"]::file-selector-button { font: 600 .95rem var(--body); margin-right: 10px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
 #r-total-fields[hidden], #r-hole-fields[hidden] { display: none; }
+
+/* ---------- Sign in ---------- */
+.auth { min-height: 70vh; display: grid; place-items: center; }
+.auth-card { width: 100%; max-width: 400px; }
+.auth-card form, .auth-card > div { display: grid; gap: 14px; }
+.auth-card h1 { font-size: 1.8rem; }
+.auth-card .btn.primary { justify-self: stretch; }
+.auth-card .link-btn { justify-self: start; }
+.auth-msg:empty { display: none; }
+.account { margin: 0; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
 .sub, .hint { color: var(--muted); font-size: .92rem; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: grid; gap: 12px; align-content: start; min-width: 0; }
 .dash-grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
@@ -175,7 +185,7 @@ a { color: var(--green); }
 .entry h2 { font-size: 1.2rem; }
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 label { display: grid; gap: 4px; font-size: .85rem; font-weight: 600; color: var(--muted); }
-input[type="text"], input[type="number"], input[type="date"], select, textarea {
+input[type="text"], input[type="number"], input[type="date"], input[type="email"], input[type="password"], select, textarea {
   font: 400 1rem var(--body); color: var(--ink); background: var(--bg);
   border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; min-width: 0;
 }

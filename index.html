@@ -16,7 +16,7 @@
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M7 21V3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M7 4l11 4-11 4z" fill="var(--flag)"/><ellipse cx="11" cy="21" rx="7" ry="1.6" fill="currentColor" opacity=".25"/></svg>
       <span>Fairway Notebook</span>
     </a>
-    <nav class="tabs" aria-label="Sections">
+    <nav class="tabs" aria-label="Sections" hidden>
       <a href="#dashboard" data-view="dashboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Dashboard</span></a>
       <a href="#rounds" data-view="rounds"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Rounds</span></a>
       <a href="#practice" data-view="practice"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg><span>Practice</span></a>
@@ -25,13 +25,41 @@
   </div>
 </header>
 
-<main class="wrap">
+<section id="auth" class="wrap auth" hidden>
+  <div class="panel auth-card">
+    <div id="auth-loading"><p class="hint">Loading your notebook…</p></div>
+
+    <div id="auth-setup" hidden>
+      <h1>Connect your database</h1>
+      <p>Fairway Notebook saves everything to your own Supabase database. Add your project's URL and publishable key to <code>config.js</code>, then reload this page.</p>
+      <p class="hint">Setup steps are in the README under “Setting up your database”.</p>
+    </div>
+
+    <form id="signin-form" hidden novalidate>
+      <h1>Sign in</h1>
+      <label>Email<input type="email" id="si-email" autocomplete="username" inputmode="email" required></label>
+      <label>Password<input type="password" id="si-password" autocomplete="current-password" required></label>
+      <button type="submit" class="btn primary">Sign in</button>
+      <button type="button" class="link-btn" id="forgot">Forgot password?</button>
+      <p class="hint auth-msg" id="signin-msg" aria-live="polite"></p>
+    </form>
+
+    <form id="newpw-form" hidden novalidate>
+      <h1>Choose a new password</h1>
+      <label>New password<input type="password" id="np-password" autocomplete="new-password" minlength="8" required></label>
+      <button type="submit" class="btn primary">Save password</button>
+      <p class="hint auth-msg" id="newpw-msg" aria-live="polite"></p>
+    </form>
+  </div>
+</section>
+
+<main class="wrap" hidden>
   <!-- DASHBOARD -->
   <section id="view-dashboard" class="view" aria-labelledby="dash-title">
     <div class="view-head"><h1 id="dash-title">Dashboard</h1><p class="sub" id="dash-sub"></p></div>
-    <div id="example-banner" class="banner" hidden>
-      <p>You're looking at <strong>example data</strong> so you can see how everything works.</p>
-      <button type="button" class="btn small" id="clear-examples">Remove examples</button>
+    <div id="migrate-banner" class="banner" hidden>
+      <p>This browser still has <strong id="migrate-count"></strong> saved from before you had an account.</p>
+      <div class="row-actions"><button type="button" class="btn small primary" id="do-migrate">Move them to my account</button><button type="button" class="btn small ghost" id="skip-migrate">Not now</button></div>
     </div>
     <div class="kpis" id="kpis"></div>
     <div class="dash-grid">
@@ -43,6 +71,7 @@
     <article class="panel data-panel">
       <h2>Your data</h2>
       <p class="hint" id="storage-note"></p>
+      <p class="account">Signed in as <strong id="who"></strong> <button type="button" class="link-btn" id="sign-out">Sign out</button></p>
       <div class="row-actions">
         <button type="button" class="btn" id="copy-backup">Copy backup</button>
         <button type="button" class="btn" id="show-restore">Restore from backup</button>
@@ -150,6 +179,8 @@
 </main>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
