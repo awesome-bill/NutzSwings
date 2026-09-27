@@ -42,8 +42,16 @@
 
   // ---------- Round math ----------
   const isGIR = (h) => h.score - h.putts <= h.par - 2;
+  // A round is either hole by hole (r.holes) or total only (r.total, r.holeCount, optional r.par and r.differential).
+  const isDetailed = (r) => Array.isArray(r.holes) && r.holes.length > 0;
+  const holeCount = (r) => (isDetailed(r) ? r.holes.length : r.holeCount || 18);
+  const toParNote = (s) => (s.toPar == null ? '' : ` (${fmtToPar(s.toPar)})`);
   function roundStats(r) {
-    const s = { holes: r.holes.length, par: 0, score: 0, putts: 0, gir: 0, fir: 0, firChances: 0 };
+    if (!isDetailed(r)) {
+      const par = r.par || null;
+      return { detailed: false, holes: holeCount(r), par, score: r.total, putts: null, gir: null, fir: null, firChances: 0, toPar: par ? r.total - par : null };
+    }
+    const s = { detailed: true, holes: r.holes.length, par: 0, score: 0, putts: 0, gir: 0, fir: 0, firChances: 0 };
     r.holes.forEach((h) => {
       s.par += h.par; s.score += h.score; s.putts += h.putts;
       if (isGIR(h)) s.gir++;
@@ -159,24 +167,26 @@
   // ---------- Dashboard ----------
   function renderDashboard() {
     const rounds = [...state.rounds].sort(byDateDesc);
-    const full = rounds.filter((r) => r.holes.length === 18);
+    // Scoring uses every 18-hole round; putts, greens and fairways use hole-by-hole rounds only.
+    const full = rounds.filter((r) => holeCount(r) === 18);
     const last5 = full.slice(0, 5).map(roundStats);
     const avg = (arr, f) => (arr.length ? arr.reduce((s, x) => s + f(x), 0) / arr.length : null);
-    const allLast5 = rounds.slice(0, 5).map(roundStats);
-    const girPct = allLast5.length ? (100 * allLast5.reduce((s, x) => s + x.gir, 0)) / allLast5.reduce((s, x) => s + x.holes, 0) : null;
-    const firChances = allLast5.reduce((s, x) => s + x.firChances, 0);
-    const firPct = firChances ? (100 * allLast5.reduce((s, x) => s + x.fir, 0)) / firChances : null;
-    const puttsPer18 = avg(allLast5, (x) => (x.putts * 18) / x.holes);
+    const detailed5 = rounds.filter(isDetailed).slice(0, 5).map(roundStats);
+    const girPct = detailed5.length ? (100 * detailed5.reduce((s, x) => s + x.gir, 0)) / detailed5.reduce((s, x) => s + x.holes, 0) : null;
+    const firChances = detailed5.reduce((s, x) => s + x.firChances, 0);
+    const firPct = firChances ? (100 * detailed5.reduce((s, x) => s + x.fir, 0)) / firChances : null;
+    const puttsPer18 = avg(detailed5, (x) => (x.putts * 18) / x.holes);
     const scoreAvg = avg(last5, (x) => x.score);
-    const toParAvg = avg(last5, (x) => x.toPar);
+    const toParAvg = last5.length && last5.every((x) => x.toPar != null) ? avg(last5, (x) => x.toPar) : null;
     const best = full.length ? Math.min(...full.map((r) => roundStats(r).score)) : null;
+    const detailNote = detailed5.length ? `Last ${detailed5.length} hole-by-hole round${detailed5.length === 1 ? '' : 's'}` : 'Needs a hole-by-hole round';
 
     const kpi = (label, value, note) => `<div class="kpi"><span class="label">${label}</span><span class="value">${value}</span><span class="note">${note}</span></div>`;
     $('#kpis').innerHTML = [
-      kpi('Scoring avg', scoreAvg == null ? '—' : scoreAvg.toFixed(1), toParAvg == null ? 'Log an 18-hole round' : `${fmtToPar(Math.round(toParAvg))} to par · best ${best}`),
-      kpi('Putts / 18', puttsPer18 == null ? '—' : puttsPer18.toFixed(1), 'Last 5 rounds'),
-      kpi('Greens hit', girPct == null ? '—' : `${Math.round(girPct)}%`, 'In regulation'),
-      kpi('Fairways hit', firPct == null ? '—' : `${Math.round(firPct)}%`, 'Par 4s and 5s'),
+      kpi('Scoring avg', scoreAvg == null ? '—' : scoreAvg.toFixed(1), scoreAvg == null ? 'Log an 18-hole round' : `${toParAvg == null ? `Last ${last5.length} rounds` : `${fmtToPar(Math.round(toParAvg))} to par`} · best ${best}`),
+      kpi('Putts / 18', puttsPer18 == null ? '—' : puttsPer18.toFixed(1), detailNote),
+      kpi('Greens hit', girPct == null ? '—' : `${Math.round(girPct)}%`, detailed5.length ? 'In regulation' : detailNote),
+      kpi('Fairways hit', firPct == null ? '—' : `${Math.round(firPct)}%`, detailed5.length ? 'Par 4s and 5s' : detailNote),
     ].join('');
 
     $('#trend').innerHTML = trendChart(full.slice(0, 10).reverse());
@@ -234,7 +244,7 @@
 
   function renderFeed() {
     const items = [
-      ...state.rounds.map((r) => { const s = roundStats(r); return { date: r.date, chip: 'Round', cls: '', text: `${esc(r.course)} · ${s.score} (${fmtToPar(s.toPar)})` }; }),
+      ...state.rounds.map((r) => { const s = roundStats(r); return { date: r.date, chip: 'Round', cls: '', text: `${esc(r.course)} · ${s.score}${toParNote(s)}` }; }),
       ...state.practice.map((p) => ({ date: p.date, chip: 'Practice', cls: 'sand', text: `${esc(p.area)} · ${p.minutes} min` })),
       ...state.workouts.map((w) => ({ date: w.date, chip: 'Workout', cls: 'plain', text: `${esc(w.type)} · ${w.minutes} min` })),
     ].sort(byDateDesc).slice(0, 6);
@@ -271,16 +281,20 @@
     const list = [...state.rounds].sort(byDateDesc);
     $('#round-list').innerHTML = list.length ? list.map((r) => {
       const s = roundStats(r);
+      const chips = (r.example ? ' <span class="chip plain">Example</span>' : '') + (s.detailed ? '' : ' <span class="chip plain">Total only</span>');
+      const statLine = s.detailed
+        ? `<div class="item-meta num"><span>${s.putts} putts</span><span>GIR ${s.gir}/${s.holes}</span><span>Fairways ${s.fir}/${s.firChances}</span>${r.differential != null ? `<span>Diff ${r.differential.toFixed(1)}</span>` : ''}</div>`
+        : (r.par || r.differential != null ? `<div class="item-meta num">${r.par ? `<span>Par ${r.par}</span>` : ''}${r.differential != null ? `<span>Differential ${r.differential.toFixed(1)}</span>` : ''}</div>` : '');
       return `<article class="item" data-id="${r.id}">
         <div class="item-top">
-          <div><div class="item-title">${esc(r.course)}${r.example ? ' <span class="chip plain">Example</span>' : ''}</div>
+          <div><div class="item-title">${esc(r.course)}${chips}</div>
           <div class="item-meta"><span>${fmtDate(r.date, true)}</span>${r.tees ? `<span>${esc(r.tees)} tees</span>` : ''}<span>${s.holes} holes</span></div></div>
-          <div class="item-score">${s.score}<small>${fmtToPar(s.toPar)}</small></div>
+          <div class="item-score">${s.score}${s.toPar == null ? '' : `<small>${fmtToPar(s.toPar)}</small>`}</div>
         </div>
-        <div class="item-meta num"><span>${s.putts} putts</span><span>GIR ${s.gir}/${s.holes}</span><span>Fairways ${s.fir}/${s.firChances}</span></div>
+        ${statLine}
         ${r.notes ? `<p class="notes">${esc(r.notes)}</p>` : ''}
-        <div class="card-detail" hidden>${scorecardTable(r)}</div>
-        <div class="item-actions"><button type="button" class="link-btn" data-act="toggle-card">Show scorecard</button><button type="button" class="link-btn danger" data-act="delete" data-kind="rounds">Delete</button></div>
+        ${s.detailed ? `<div class="card-detail" hidden>${scorecardTable(r)}</div>` : ''}
+        <div class="item-actions">${s.detailed ? '<button type="button" class="link-btn" data-act="toggle-card">Show scorecard</button>' : ''}<button type="button" class="link-btn danger" data-act="delete" data-kind="rounds">Delete</button></div>
       </article>`;
     }).join('') : '<p class="empty">No rounds yet. Tap “New round” after your next 9 or 18.</p>';
     const courses = [...new Set(state.rounds.map((r) => r.course))];
@@ -330,15 +344,30 @@
     });
     $('#r-totals').innerHTML = `<td>Tot</td><td>${par}</td><td>${score || '–'}</td><td>${putts || '–'}</td><td>${fir}/${firCh}</td><td>${gir}</td>`;
   }
+  const roundMode = () => $('input[name="r-mode"]:checked').value;
+  function showRoundMode() {
+    const total = roundMode() === 'total';
+    $('#r-total-fields').hidden = !total;
+    $('#r-hole-fields').hidden = total;
+  }
   function resetRoundForm() {
     $('#round-form').reset();
     $('#r-date').value = todayISO();
     buildHoleRows(18);
+    showRoundMode();
   }
   function prefillParsForCourse() {
     const course = $('#r-course').value.trim().toLowerCase();
     const count = parseInt($('input[name="r-holes"]:checked').value, 10);
-    const prev = [...state.rounds].sort(byDateDesc).find((r) => r.course.toLowerCase() === course && r.holes.length >= count);
+    const sorted = [...state.rounds].sort(byDateDesc);
+    if (roundMode() === 'total') {
+      // Fill course par from the last round here with the same number of holes
+      if ($('#r-par').value) return;
+      const prev = sorted.find((r) => r.course.toLowerCase() === course && holeCount(r) === count && roundStats(r).par);
+      if (prev) { $('#r-par').value = roundStats(prev).par; toast(`Par filled in from your last round at ${prev.course}`); }
+      return;
+    }
+    const prev = sorted.find((r) => r.course.toLowerCase() === course && isDetailed(r) && r.holes.length >= count);
     if (prev) {
       prev.holes.slice(0, count).forEach((h, i) => { $(`#h-par-${i}`).value = h.par; });
       updateRoundForm();
@@ -348,6 +377,7 @@
 
   $('#r-holes-body').addEventListener('input', updateRoundForm);
   $('#r-course').addEventListener('change', prefillParsForCourse);
+  $$('input[name="r-mode"]').forEach((radio) => radio.addEventListener('change', () => { showRoundMode(); if ($('#r-course').value.trim()) prefillParsForCourse(); }));
   $$('input[name="r-holes"]').forEach((radio) => radio.addEventListener('change', () => {
     const pars = readHoles().map((h) => h.par);
     buildHoleRows(parseInt(radio.value, 10), pars);
@@ -356,6 +386,21 @@
     e.preventDefault();
     const course = $('#r-course').value.trim();
     if (!course) { toast('Add the course name'); $('#r-course').focus(); return; }
+    if (roundMode() === 'total') {
+      const count = parseInt($('input[name="r-holes"]:checked').value, 10);
+      const total = parseInt($('#r-total').value, 10);
+      const par = parseInt($('#r-par').value, 10);
+      const diff = parseFloat($('#r-diff').value);
+      if (!(total >= count) || total > count * 10) { toast(`Enter your total score for the ${count} holes`); $('#r-total').focus(); return; }
+      if ($('#r-par').value && !(par >= count * 3 && par <= count * 5)) { toast('Course par looks off. Leave it blank if you’re not sure.'); $('#r-par').focus(); return; }
+      const r = { id: uid(), date: $('#r-date').value || todayISO(), course, tees: $('#r-tees').value.trim(), holeCount: count, total, notes: $('#r-notes').value.trim() };
+      if (par) r.par = par;
+      if (!isNaN(diff)) r.differential = diff;
+      state.rounds.push(r);
+      save(); closeForm('round-form'); renderAll();
+      toast(`Round saved: ${total}${toParNote(roundStats(r))}`);
+      return;
+    }
     const holes = readHoles();
     for (let i = 0; i < holes.length; i++) {
       const h = holes[i];
@@ -367,7 +412,60 @@
     state.rounds.push({ id: uid(), date: $('#r-date').value || todayISO(), course, tees: $('#r-tees').value.trim(), holes, notes: $('#r-notes').value.trim() });
     save(); closeForm('round-form'); renderAll();
     const s = roundStats(state.rounds[state.rounds.length - 1]);
-    toast(`Round saved: ${s.score} (${fmtToPar(s.toPar)})`);
+    toast(`Round saved: ${s.score}${toParNote(s)}`);
+  });
+
+  // ---------- Import (e.g. GHIN score history) ----------
+  // One round per line: date, course, tees, holes, score, par, differential. Commas or tabs.
+  function parseDate(s) {
+    const pad = (n) => String(n).padStart(2, '0');
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m) return `${m[1]}-${pad(m[2])}-${pad(m[3])}`;
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+    if (m) return `${m[3].length === 2 ? '20' + m[3] : m[3]}-${pad(m[1])}-${pad(m[2])}`;
+    return null;
+  }
+  const sameRound = (a, b) => a.date === b.date && a.course.toLowerCase() === b.course.toLowerCase() && roundStats(a).score === roundStats(b).score;
+  function parseImport(text) {
+    const fresh = [], skipped = [], bad = [];
+    text.split(/\r?\n/).forEach((line, i) => {
+      if (!line.trim() || line.trim().startsWith('#')) return;
+      const cols = (line.includes('\t') ? line.split('\t') : line.split(',')).map((c) => c.trim());
+      if (/^date$/i.test(cols[0])) return; // header row
+      const [d = '', course = '', tees = '', holes = '', score = '', par = '', diff = ''] = cols;
+      const date = parseDate(d);
+      const count = holes ? parseInt(holes, 10) : 18;
+      const total = parseInt(score, 10);
+      const p = parseInt(par, 10);
+      const df = parseFloat(diff);
+      if (!date || !course || (count !== 9 && count !== 18) || !(total >= count && total <= count * 10) || (par && !(p >= count * 3 && p <= count * 5))) { bad.push(i + 1); return; }
+      const r = { id: uid(), date, course, tees, holeCount: count, total, notes: '', source: 'import' };
+      if (p) r.par = p;
+      if (!isNaN(df)) r.differential = df;
+      if (state.rounds.some((x) => sameRound(x, r)) || fresh.some((x) => sameRound(x, r))) skipped.push(r); else fresh.push(r);
+    });
+    return { fresh, skipped, bad };
+  }
+  function importSummary({ fresh, skipped, bad }) {
+    const parts = [];
+    parts.push(`${fresh.length} round${fresh.length === 1 ? '' : 's'} ready to import`);
+    if (skipped.length) parts.push(`${skipped.length} already in the app`);
+    if (bad.length) parts.push(`couldn’t read line${bad.length === 1 ? '' : 's'} ${bad.join(', ')}`);
+    return parts.join(' · ');
+  }
+  function resetImportForm() { $('#import-form').reset(); $('#import-preview').textContent = ''; }
+  $('#import-text').addEventListener('input', () => {
+    const text = $('#import-text').value;
+    $('#import-preview').textContent = text.trim() ? importSummary(parseImport(text)) : '';
+  });
+  $('#import-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const result = parseImport($('#import-text').value);
+    if (!result.fresh.length) { toast(result.bad.length ? 'Nothing imported. Check the lines listed below.' : 'No new rounds to import'); $('#import-preview').textContent = importSummary(result); return; }
+    if (result.bad.length) { toast(`Fix or remove line${result.bad.length === 1 ? '' : 's'} ${result.bad.join(', ')} first`); $('#import-preview').textContent = importSummary(result); return; }
+    state.rounds.push(...result.fresh);
+    save(); closeForm('import-form'); renderAll();
+    toast(`Imported ${result.fresh.length} round${result.fresh.length === 1 ? '' : 's'}${result.skipped.length ? ` (${result.skipped.length} already here)` : ''}`);
   });
 
   // ---------- Practice ----------
@@ -441,7 +539,7 @@
   });
 
   // ---------- Opening / closing forms ----------
-  const resetters = { 'round-form': resetRoundForm, 'practice-form': resetPracticeForm, 'workout-form': resetWorkoutForm };
+  const resetters = { 'round-form': resetRoundForm, 'import-form': resetImportForm, 'practice-form': resetPracticeForm, 'workout-form': resetWorkoutForm };
   function openForm(id) {
     resetters[id]();
     const f = $(`#${id}`); f.hidden = false;
