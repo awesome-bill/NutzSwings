@@ -8,6 +8,6 @@
 
    NEVER put the "secret" or "service_role" key here. That key bypasses those protections. */
 window.FAIRWAY_CONFIG = {
-  supabaseUrl: '',      // looks like https://abcdefghijklmnop.supabase.co
-  supabaseAnonKey: '',  // the publishable key (sb_publishable_...) or the older "anon public" key
+  supabaseUrl: 'https://ejuudpoyfcclapkvacmj.supabase.co',      // looks like https://abcdefghijklmnop.supabase.co
+  supabaseAnonKey: 'sb_publishable_47TE7sXRGWzPEJmmzyomfA_P0kzOTOg',  // the publishable key (sb_publishable_...) or the older "anon public" key
 };
