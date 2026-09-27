@@ -9,19 +9,37 @@ A personal golf app for tracking the three things that make a better golfer:
 
 ## How it works
 
-It's a plain web page: `index.html` (structure), `styles.css` (look), and `app.js` (behavior). No build step, no frameworks.
+It's a plain web page: `index.html` (structure), `styles.css` (look), and `app.js` (behavior). No build step, no frameworks. It's hosted on GitHub Pages.
 
-Data is saved in your browser's local storage on the device you use. Use **Copy backup** on the dashboard to keep a copy, and **Restore from backup** to move your data to another device.
+Your data lives in your own **Supabase** database (a hosted Postgres database with built-in sign-in). You sign in with your email and password, and the same data shows up on any device.
+
+- `config.js` holds the database address and its public key.
+- `supabase/setup.sql` creates the tables: `rounds`, `practice_sessions`, `workouts`. Row level security means each row can only be read or changed by the account that owns it, so the public key on its own can't reach anything.
+
+**Copy backup** on the dashboard still gives you a full copy as text. **Restore from backup** adds back anything that's missing.
+
+## Setting up your database (one time)
+
+1. **Create a Supabase project.** Sign up at supabase.com (signing in with GitHub is easiest). Click **New project**, name it `fairway-notebook`, and pick a region near you. Save the database password it asks for somewhere safe. You won't need it day to day.
+2. **Create the tables.** In the project, open **SQL Editor**, then **New query**. Paste in all of `supabase/setup.sql` and click **Run**. You should see "Success. No rows returned".
+3. **Create your login.** Open **Authentication**, then **Users**, then **Add user** and **Create new user**. Enter your email and a password, and tick **Auto Confirm User**.
+4. **Close the door behind you.** In the Authentication settings (**Sign In / Providers**), turn off **Allow new users to sign up**. Now nobody else can create an account.
+5. **Set the site address** so password-reset emails link back to the app. In **Authentication**, then **URL Configuration**, set **Site URL** to `https://awesome-bill.github.io/NutzSwings/`.
+6. **Connect the app.** Click **Connect** at the top of the project and copy the **Project URL** and the **publishable** (or "anon public") key into `config.js`. Never use the secret / service_role key.
+7. Open the app, sign in, and use **Move them to my account** on the dashboard to bring over anything saved in that browser from before.
+
+Free Supabase projects pause after about a week without any use. If the app says it can't load your data, open the Supabase dashboard and click **Restore project**.
 
 ## Run it
 
-Open `index.html` in a browser, or view the live version on GitHub Pages once it's turned on.
+Use the live version at https://awesome-bill.github.io/NutzSwings/. To try changes on your computer, run a local web server in the folder (for example `python -m http.server`) and open http://localhost:8000. It signs in to the same database.
 
 ## Changelog
 
 - **v1**: Dashboard, rounds, practice, and workouts, with example data and backup/restore.
 - **v1.1**: Total-only rounds (date, course, tees, score, optional par and differential) and **Import scores** on the Rounds page for pasting in history such as GHIN. Scoring average and trend use every round; putts, greens and fairways use hole-by-hole rounds only.
 - **v1.2**: Import reads the GHIN export directly (choose the file or paste it) and keeps score type, course rating, slope, PCC, differential and Used in Handicap. Re-importing updates existing rounds.
+- **v2.0**: Data moves to a Supabase database with email/password sign-in, so it's the same on every device. One-tap move of data saved in the browser by earlier versions. Example data removed.
 
 ## Importing from GHIN
 

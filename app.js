@@ -1,10 +1,10 @@
 /* Fairway Notebook — golf rounds, practice and workouts.
-   All data is saved in this browser (localStorage). */
+   Data is saved to your Supabase database (connection in config.js, tables in supabase/setup.sql). */
 (function () {
   'use strict';
 
   // ---------- Small helpers ----------
-  const STORAGE_KEY = 'fairway-notebook-v1';
+  const STORAGE_KEY = 'fairway-notebook-v1'; // where versions before 2.0 kept data in this browser
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const uid = () => Math.random().toString(36).slice(2, 10);
@@ -65,75 +65,112 @@
     return d <= -2 ? 'eagle' : d === -1 ? 'birdie' : d === 0 ? 'par' : d === 1 ? 'bogey' : 'double';
   }
 
-  // ---------- Example data (shown until removed) ----------
-  function rng(seed) {
-    return function () {
-      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
-      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
+  // ---------- Database (Supabase) ----------
+  // Connection details live in config.js. Row level security in the database keeps every row private to its owner.
+  const CFG = window.FAIRWAY_CONFIG || {};
+  const configured = !!(CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase);
+  const recoveryLink = /type=recovery/.test(location.hash); // arrived from a "reset password" email
+  const sb = configured ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey) : null;
+  const TABLES = { rounds: 'rounds', practice: 'practice_sessions', workouts: 'workouts' };
+  const emptyState = () => ({ rounds: [], practice: [], workouts: [] });
+  let state = emptyState();
+  let currentUser = null;
+  const n = (v) => (v == null ? null : Number(v));
+
+  // App objects use camelCase; database columns use snake_case.
+  const toRow = {
+    rounds: (r) => {
+      const s = roundStats(r);
+      return {
+        date: r.date, course: r.course, tees: r.tees || '', hole_count: s.holes, total: s.score, par: s.par || null,
+        holes: isDetailed(r) ? r.holes : null, notes: r.notes || '', source: r.source === 'ghin' ? 'ghin' : 'manual',
+        score_type: r.scoreType || null, course_rating: r.courseRating ?? null, slope: r.slope ?? null, pcc: r.pcc ?? null,
+        differential: r.differential ?? null, used_in_handicap: r.usedInHandicap ?? null,
+      };
+    },
+    practice: (p) => ({ date: p.date, area: p.area, minutes: p.minutes, balls: p.balls || 0, focus: p.focus || '', rating: p.rating, notes: p.notes || '' }),
+    workouts: (w) => ({ date: w.date, type: w.type, minutes: w.minutes, exercises: w.exercises || [], notes: w.notes || '' }),
+  };
+  const fromRow = {
+    rounds: (x) => {
+      const r = { id: x.id, date: x.date, course: x.course, tees: x.tees || '', notes: x.notes || '', source: x.source,
+        holeCount: x.hole_count, total: x.total, scoreType: x.score_type || '', courseRating: n(x.course_rating), slope: n(x.slope),
+        pcc: n(x.pcc), differential: n(x.differential), usedInHandicap: x.used_in_handicap };
+      if (Array.isArray(x.holes) && x.holes.length) r.holes = x.holes; else if (x.par) r.par = x.par;
+      return r;
+    },
+    practice: (x) => ({ id: x.id, date: x.date, area: x.area, minutes: x.minutes, balls: x.balls, focus: x.focus || '', rating: x.rating, notes: x.notes || '' }),
+    workouts: (x) => ({ id: x.id, date: x.date, type: x.type, minutes: x.minutes, exercises: x.exercises || [], notes: x.notes || '' }),
+  };
+  async function dbLoad() {
+    const kinds = Object.keys(TABLES);
+    const results = await Promise.all(kinds.map((k) => sb.from(TABLES[k]).select('*').order('date', { ascending: false })));
+    const failed = results.find((res) => res.error);
+    if (failed) throw failed.error;
+    const next = emptyState();
+    kinds.forEach((k, i) => { next[k] = results[i].data.map(fromRow[k]); });
+    state = next;
   }
-  const EXAMPLE_PARS = [4, 4, 3, 5, 4, 4, 3, 4, 5, 4, 3, 4, 5, 4, 4, 3, 4, 5];
-  function exampleRound(seed, daysBack, course, tees) {
-    const rand = rng(seed);
-    const holes = EXAMPLE_PARS.map((par) => {
-      const r = rand();
-      const over = r < 0.07 ? -1 : r < 0.36 ? 0 : r < 0.78 ? 1 : r < 0.95 ? 2 : 3;
-      const score = par + over;
-      const p = rand();
-      let putts = p < 0.18 ? 1 : p < 0.85 ? 2 : 3;
-      if (putts > score - 1) putts = score - 1;
-      return { par, score, putts, fir: par >= 4 ? rand() < 0.5 : false };
-    });
-    return { id: uid(), example: true, date: isoDaysAgo(daysBack), course, tees, holes, notes: '' };
+  async function dbInsert(kind, items) {
+    if (!items.length) return [];
+    const { data, error } = await sb.from(TABLES[kind]).insert(items.map(toRow[kind])).select();
+    if (error) throw error;
+    const saved = data.map(fromRow[kind]);
+    state[kind].push(...saved);
+    return saved;
   }
-  function exampleData() {
-    const rounds = [
-      exampleRound(11, 3, 'Pine Hollow GC', 'White'),
-      exampleRound(27, 10, 'Pine Hollow GC', 'White'),
-      exampleRound(5, 17, 'Riverbend Municipal', 'Blue'),
-      exampleRound(42, 24, 'Pine Hollow GC', 'White'),
-      exampleRound(8, 31, 'Riverbend Municipal', 'Blue'),
-      exampleRound(19, 40, 'Pine Hollow GC', 'White'),
-    ];
-    rounds[0].notes = 'Lag putting felt better. Missed right with driver on the back nine.';
-    const practice = [
-      [1, 'Putting', 30, 0, 'Lag ladder, 20–40 ft', 4],
-      [5, 'Wedges', 45, 80, '50 / 75 / 100 yd carry ladder', 3],
-      [8, 'Driver & woods', 40, 60, 'Start line through an alignment-stick gate', 3],
-      [12, 'Chipping', 30, 50, 'One club, three landing spots', 4],
-      [15, 'Irons', 50, 90, 'Low point: towel 4 in. behind the ball', 2],
-      [20, 'Putting', 25, 0, '3-ft circle, 25 in a row', 5],
-      [26, 'Bunker', 20, 40, 'Line in the sand, enter behind it', 3],
-    ].map(([d, area, minutes, balls, focus, rating]) => ({ id: uid(), example: true, date: isoDaysAgo(d), area, minutes, balls, focus, rating, notes: '' }));
-    const workouts = [
-      [2, 'Strength', 50, [['Trap bar deadlift', 4, '5', '185 lb'], ['Split squat', 3, '8', '35 lb DBs'], ['Cable wood chop', 3, '10', '40 lb']]],
-      [4, 'Speed', 25, [['Med ball rotational throw', 5, '5', '8 lb'], ['Overspeed swings', 3, '10', 'Light stick']]],
-      [6, 'Mobility', 20, [['90/90 hip switch', 2, '10', ''], ['Open books', 2, '10/side', ''], ['Deep squat hold', 3, '45 s', '']]],
-      [9, 'Strength', 45, [['Goblet squat', 4, '8', '50 lb'], ['Single-arm row', 3, '10', '45 lb'], ['Pallof press', 3, '12', 'Green band']]],
-      [13, 'Conditioning', 30, [['Farmer carry', 4, '40 yd', '60 lb DBs'], ['Lateral bound', 3, '6/side', '']]],
-    ].map(([d, type, minutes, ex]) => ({ id: uid(), example: true, date: isoDaysAgo(d), type, minutes, notes: '',
-      exercises: ex.map(([name, sets, reps, load]) => ({ name, sets, reps, load })) }));
-    return { rounds, practice, workouts };
+  async function dbUpdate(kind, item) {
+    const { error } = await sb.from(TABLES[kind]).update(toRow[kind](item)).eq('id', item.id);
+    if (error) throw error;
+  }
+  async function dbDelete(kind, id) {
+    const { error } = await sb.from(TABLES[kind]).delete().eq('id', id);
+    if (error) throw error;
+    state[kind] = state[kind].filter((x) => x.id !== id);
+  }
+  async function dbDeleteAll() {
+    for (const k of Object.keys(TABLES)) {
+      const { error } = await sb.from(TABLES[k]).delete().not('id', 'is', null);
+      if (error) throw error;
+    }
+    state = emptyState();
+  }
+  // Runs a database change with the button disabled; shows a message if it fails. Returns true on success.
+  async function busy(btn, work) {
+    if (btn) btn.disabled = true;
+    try { await work(); return true; }
+    catch (err) { console.error(err); toast(`Couldn’t save to your database: ${err.message || err}`); return false; }
+    finally { if (btn) btn.disabled = false; renderAll(); }
   }
 
-  // ---------- Storage ----------
-  let storageWorks = true;
-  function load() {
+  // ---------- Adding entries without duplicates (backup restore, moving old browser data) ----------
+  const sameEntry = {
+    rounds: (a, b) => sameRound(a, b),
+    practice: (a, b) => a.date === b.date && a.area === b.area && a.minutes === b.minutes && (a.focus || '') === (b.focus || ''),
+    workouts: (a, b) => a.date === b.date && a.type === b.type && a.minutes === b.minutes,
+  };
+  async function mergeIn(data) {
+    let added = 0;
+    for (const k of Object.keys(TABLES)) {
+      const incoming = (data[k] || []).filter((x) => !x.example);
+      const fresh = incoming.filter((x, i) => !state[k].some((y) => sameEntry[k](x, y)) && incoming.findIndex((y) => sameEntry[k](x, y)) === i);
+      added += (await dbInsert(k, fresh)).length;
+    }
+    return added;
+  }
+
+  // ---------- Data saved in this browser by earlier versions ----------
+  const LEGACY_DONE_KEY = 'fairway-notebook-moved';
+  function legacyData() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch (e) { storageWorks = false; }
-    return null;
+      if (localStorage.getItem(LEGACY_DONE_KEY)) return null;
+      const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      if (!d || !Array.isArray(d.rounds)) return null;
+      const count = ['rounds', 'practice', 'workouts'].reduce((s, k) => s + (d[k] || []).filter((x) => !x.example).length, 0);
+      return count ? { data: d, count } : null;
+    } catch (e) { return null; }
   }
-  function save() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); storageWorks = true; }
-    catch (e) { storageWorks = false; }
-  }
-  let state = load();
-  if (!state || !Array.isArray(state.rounds)) { state = exampleData(); save(); }
-  const hasExamples = () => ['rounds', 'practice', 'workouts'].some((k) => state[k].some((x) => x.example));
+  function markLegacyDone() { try { localStorage.setItem(LEGACY_DONE_KEY, new Date().toISOString()); } catch (e) { /* ignore */ } }
 
   // ---------- Toast ----------
   let toastTimer;
@@ -196,11 +233,12 @@
 
     const total = state.rounds.length + state.practice.length + state.workouts.length;
     $('#dash-sub').textContent = `${state.rounds.length} rounds · ${state.practice.length} practice sessions · ${state.workouts.length} workouts`;
-    $('#example-banner').hidden = !hasExamples();
-    $('#storage-note').textContent = storageWorks
-      ? `Saved in this browser on this device (${total} entries). Copy a backup now and then, or before switching devices.`
-      : 'This browser is not allowing the app to save. Entries will be lost when you close the page; copy a backup to keep them.';
+    $('#storage-note').textContent = `${total} entries saved to your account${currentUser ? ` (${currentUser.email})` : ''}. They're the same on any device you sign in from.`;
+    const legacy = legacyData();
+    $('#migrate-banner').hidden = !legacy || migrateDismissed;
+    if (legacy) $('#migrate-count').textContent = `${legacy.count} entr${legacy.count === 1 ? 'y' : 'ies'}`;
   }
+  let migrateDismissed = false;
 
   function trendChart(rs) {
     if (rs.length < 2) return '<p class="empty">Log two 18-hole rounds to see your trend.</p>';
@@ -391,8 +429,9 @@
     const pars = readHoles().map((h) => h.par);
     buildHoleRows(parseInt(radio.value, 10), pars);
   }));
-  $('#round-form').addEventListener('submit', (e) => {
+  $('#round-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = e.submitter || $('#round-form button[type=submit]');
     const course = $('#r-course').value.trim();
     if (!course) { toast('Add the course name'); $('#r-course').focus(); return; }
     if (roundMode() === 'total') {
@@ -405,9 +444,7 @@
       const r = { id: uid(), date: $('#r-date').value || todayISO(), course, tees: $('#r-tees').value.trim(), holeCount: count, total, notes: $('#r-notes').value.trim() };
       if (par) r.par = par;
       if (!isNaN(diff)) r.differential = diff;
-      state.rounds.push(r);
-      save(); closeForm('round-form'); renderAll();
-      toast(`Round saved: ${total}${toParNote(roundStats(r))}`);
+      if (await busy(btn, () => dbInsert('rounds', [r]))) { closeForm('round-form'); toast(`Round saved: ${total}${toParNote(roundStats(r))}`); }
       return;
     }
     const holes = readHoles();
@@ -418,10 +455,9 @@
       if (isNaN(h.putts) || h.putts < 0) { toast(`Enter putts for hole ${i + 1} (0 for a chip-in)`); $(`#h-putts-${i}`).focus(); return; }
       if (h.putts >= h.score) { toast(`Hole ${i + 1}: putts must be fewer than the score`); $(`#h-putts-${i}`).focus(); return; }
     }
-    state.rounds.push({ id: uid(), date: $('#r-date').value || todayISO(), course, tees: $('#r-tees').value.trim(), holes, notes: $('#r-notes').value.trim() });
-    save(); closeForm('round-form'); renderAll();
-    const s = roundStats(state.rounds[state.rounds.length - 1]);
-    toast(`Round saved: ${s.score}${toParNote(s)}`);
+    const r = { id: uid(), date: $('#r-date').value || todayISO(), course, tees: $('#r-tees').value.trim(), holes, notes: $('#r-notes').value.trim() };
+    const s = roundStats(r);
+    if (await busy(btn, () => dbInsert('rounds', [r]))) { closeForm('round-form'); toast(`Round saved: ${s.score}${toParNote(s)}`); }
   });
 
   // ---------- GHIN import ----------
@@ -517,19 +553,25 @@
     if (!file) return;
     file.text().then((text) => { $('#import-text').value = text; previewImport(); }, () => toast('Couldn’t read that file'));
   });
-  $('#import-form').addEventListener('submit', (e) => {
+  $('#import-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = e.submitter || $('#import-form button[type=submit]');
     const res = parseGhin($('#import-text').value);
     $('#import-preview').textContent = importSummary(res);
     if (res.error) { toast('That isn’t a GHIN score export'); return; }
     if (res.bad.length) { toast(`Fix or remove line${res.bad.length === 1 ? '' : 's'} ${res.bad.join(', ')} first`); return; }
     if (!res.fresh.length && !res.updates.length) { toast('Everything is already up to date'); return; }
-    state.rounds.push(...res.fresh);
-    res.updates.forEach(({ existing, ghin }) => {
-      Object.entries(ghin).forEach(([k, v]) => { if (!(k === 'tees' && !v)) existing[k] = v; });
-      existing.source = existing.source || 'ghin';
+    const ok = await busy(btn, async () => {
+      await dbInsert('rounds', res.fresh);
+      for (const { existing, ghin } of res.updates) {
+        const updated = { ...existing };
+        Object.entries(ghin).forEach(([k, v]) => { if (!(k === 'tees' && !v)) updated[k] = v; });
+        await dbUpdate('rounds', updated);
+        Object.assign(existing, updated);
+      }
     });
-    save(); closeForm('import-form'); renderAll();
+    if (!ok) return;
+    closeForm('import-form');
     const bits = [];
     if (res.fresh.length) bits.push(`${res.fresh.length} added`);
     if (res.updates.length) bits.push(`${res.updates.length} updated`);
@@ -552,14 +594,14 @@
       </article>`).join('') : '<p class="empty">No practice sessions yet.</p>';
   }
   function resetPracticeForm() { $('#practice-form').reset(); $('#p-date').value = todayISO(); }
-  $('#practice-form').addEventListener('submit', (e) => {
+  $('#practice-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const minutes = parseInt($('#p-minutes').value, 10);
     if (!minutes || minutes < 1) { toast('Enter how many minutes you practiced'); $('#p-minutes').focus(); return; }
-    state.practice.push({ id: uid(), date: $('#p-date').value || todayISO(), area: $('#p-area').value, minutes,
+    const p = { date: $('#p-date').value || todayISO(), area: $('#p-area').value, minutes,
       balls: parseInt($('#p-balls').value, 10) || 0, focus: $('#p-focus').value.trim(),
-      rating: parseInt($('input[name="p-rating"]:checked').value, 10), notes: $('#p-notes').value.trim() });
-    save(); closeForm('practice-form'); renderAll(); toast('Practice session saved');
+      rating: parseInt($('input[name="p-rating"]:checked').value, 10), notes: $('#p-notes').value.trim() };
+    if (await busy(e.submitter, () => dbInsert('practice', [p]))) { closeForm('practice-form'); toast('Practice session saved'); }
   });
 
   // ---------- Workouts ----------
@@ -594,7 +636,7 @@
         <div class="item-actions"><button type="button" class="link-btn danger" data-act="delete" data-kind="workouts">Delete</button></div>
       </article>`).join('') : '<p class="empty">No workouts yet.</p>';
   }
-  $('#workout-form').addEventListener('submit', (e) => {
+  $('#workout-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const minutes = parseInt($('#w-minutes').value, 10);
     if (!minutes || minutes < 1) { toast('Enter how long the workout took'); $('#w-minutes').focus(); return; }
@@ -602,8 +644,8 @@
       const [name, sets, reps, load] = $$('input', row).map((i) => i.value.trim());
       return { name, sets: parseInt(sets, 10) || null, reps, load };
     }).filter((x) => x.name);
-    state.workouts.push({ id: uid(), date: $('#w-date').value || todayISO(), type: $('#w-type').value, minutes, exercises, notes: $('#w-notes').value.trim() });
-    save(); closeForm('workout-form'); renderAll(); toast('Workout saved');
+    const w = { date: $('#w-date').value || todayISO(), type: $('#w-type').value, minutes, exercises, notes: $('#w-notes').value.trim() };
+    if (await busy(e.submitter, () => dbInsert('workouts', [w]))) { closeForm('workout-form'); toast('Workout saved'); }
   });
 
   // ---------- Opening / closing forms ----------
@@ -629,20 +671,23 @@
       d.hidden = !d.hidden;
       btn.textContent = d.hidden ? 'Show scorecard' : 'Hide scorecard';
     } else if (btn.dataset.act === 'delete') {
-      armOrRun(btn, 'Tap again to delete', () => {
-        const kind = btn.dataset.kind;
-        state[kind] = state[kind].filter((x) => x.id !== item.dataset.id);
-        save(); renderAll(); toast('Deleted');
+      armOrRun(btn, 'Tap again to delete', async () => {
+        if (await busy(btn, () => dbDelete(btn.dataset.kind, item.dataset.id))) toast('Deleted');
       });
     }
   });
 
-  // ---------- Your data: backup, restore, examples, erase ----------
-  $('#clear-examples').addEventListener('click', () => {
-    ['rounds', 'practice', 'workouts'].forEach((k) => { state[k] = state[k].filter((x) => !x.example); });
-    state.examplesCleared = true;
-    save(); renderAll(); toast('Examples removed. Everything left is yours.');
+  // ---------- Your data: move old data, backup, restore, erase ----------
+  $('#do-migrate').addEventListener('click', async (e) => {
+    const legacy = legacyData();
+    if (!legacy) return;
+    let added = 0;
+    if (await busy(e.currentTarget, async () => { added = await mergeIn(legacy.data); })) {
+      markLegacyDone(); renderAll();
+      toast(added ? `Moved ${added} entr${added === 1 ? 'y' : 'ies'} into your account` : 'Those entries were already in your account');
+    }
   });
+  $('#skip-migrate').addEventListener('click', () => { migrateDismissed = true; renderAll(); });
   $('#copy-backup').addEventListener('click', () => {
     const text = JSON.stringify(state);
     const done = () => toast('Backup copied. Paste it into a note or email to yourself.');
@@ -654,26 +699,91 @@
     try { navigator.clipboard.writeText(text).then(done, fallback); } catch (err) { fallback(); }
   });
   $('#show-restore').addEventListener('click', () => { const b = $('#restore-box'); b.hidden = !b.hidden; if (!b.hidden) $('#restore-text').focus(); });
-  $('#do-restore').addEventListener('click', () => {
+  $('#do-restore').addEventListener('click', async (e) => {
+    let data;
     try {
-      const data = JSON.parse($('#restore-text').value);
+      data = JSON.parse($('#restore-text').value);
       if (!Array.isArray(data.rounds) || !Array.isArray(data.practice) || !Array.isArray(data.workouts)) throw new Error('shape');
-      state = data; save(); renderAll();
-      $('#restore-box').hidden = true; $('#restore-text').value = '';
-      toast('Backup restored');
     } catch (err) {
-      toast('That text isn’t a Fairway Notebook backup. Paste the whole thing you copied.');
+      toast('That text isn’t a Fairway Notebook backup. Paste the whole thing you copied.'); return;
+    }
+    let added = 0;
+    if (await busy(e.currentTarget, async () => { added = await mergeIn(data); })) {
+      $('#restore-box').hidden = true; $('#restore-text').value = '';
+      toast(added ? `Restored ${added} entr${added === 1 ? 'y' : 'ies'} (anything already here was skipped)` : 'Everything in that backup is already here');
     }
   });
   $('#erase-all').addEventListener('click', (e) => {
-    armOrRun(e.currentTarget, 'Tap again to erase all', () => {
-      state = { rounds: [], practice: [], workouts: [], examplesCleared: true };
-      save(); renderAll(); toast('All entries erased');
+    const btn = e.currentTarget;
+    armOrRun(btn, 'Tap again to erase all', async () => {
+      if (await busy(btn, dbDeleteAll)) toast('All entries erased');
     });
   });
 
+  // ---------- Sign in ----------
+  const AUTH_PANES = ['auth-setup', 'auth-loading', 'signin-form', 'newpw-form'];
+  function showAuth(pane, msg) {
+    $('#auth').hidden = false; $('main').hidden = true; $('.tabs').hidden = true;
+    AUTH_PANES.forEach((id) => { $(`#${id}`).hidden = id !== pane; });
+    if (msg != null) { const m = $(`#${pane} .auth-msg`); if (m) m.textContent = msg; }
+  }
+  function showApp() { $('#auth').hidden = true; $('main').hidden = false; $('.tabs').hidden = false; }
+  async function enterApp(session) {
+    currentUser = session.user;
+    $('#who').textContent = currentUser.email;
+    showAuth('auth-loading');
+    try { await dbLoad(); }
+    catch (err) {
+      showAuth('signin-form', `Signed in, but your data couldn’t be loaded (${err.message || err}). Has supabase/setup.sql been run?`);
+      return;
+    }
+    showApp(); renderAll(); showView();
+  }
+  $('#signin-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = $('#si-email').value.trim(), password = $('#si-password').value;
+    if (!email || !password) { $('#signin-msg').textContent = 'Enter your email and password.'; return; }
+    const btn = e.submitter || $('#signin-form button[type=submit]');
+    btn.disabled = true; $('#signin-msg').textContent = 'Signing in…';
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    btn.disabled = false;
+    if (error) { $('#signin-msg').textContent = /invalid/i.test(error.message) ? 'That email and password don’t match.' : error.message; return; }
+    $('#si-password').value = '';
+    enterApp(data.session);
+  });
+  $('#forgot').addEventListener('click', async () => {
+    const email = $('#si-email').value.trim();
+    if (!email) { $('#signin-msg').textContent = 'Type your email above first, then tap “Forgot password?” again.'; $('#si-email').focus(); return; }
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+    $('#signin-msg').textContent = error ? error.message : 'Check your email for a link to choose a new password.';
+  });
+  $('#newpw-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const password = $('#np-password').value;
+    if (password.length < 8) { $('#newpw-msg').textContent = 'Use at least 8 characters.'; return; }
+    const { data, error } = await sb.auth.updateUser({ password });
+    if (error) { $('#newpw-msg').textContent = error.message; return; }
+    $('#np-password').value = '';
+    const { data: s } = await sb.auth.getSession();
+    toast('Password updated');
+    if (s.session) enterApp(s.session); else showAuth('signin-form', data.user ? 'Password updated. Sign in with it now.' : '');
+  });
+  $('#sign-out').addEventListener('click', () => sb.auth.signOut());
+
+  async function boot() {
+    if (!configured) { showAuth('auth-setup'); return; }
+    showAuth('auth-loading');
+    sb.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') showAuth('newpw-form');
+      if (event === 'SIGNED_OUT') { currentUser = null; state = emptyState(); showAuth('signin-form', ''); }
+    });
+    const { data } = await sb.auth.getSession();
+    if (recoveryLink && data.session) showAuth('newpw-form');
+    else if (data.session) enterApp(data.session);
+    else showAuth('signin-form');
+  }
+
   // ---------- Go ----------
   function renderAll() { renderDashboard(); renderRounds(); renderPractice(); renderWorkouts(); }
-  renderAll();
-  showView();
+  boot();
 })();
