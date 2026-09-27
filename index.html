@@ -58,9 +58,22 @@
 
   <!-- ROUNDS -->
   <section id="view-rounds" class="view" hidden aria-labelledby="rounds-title">
-    <div class="view-head"><h1 id="rounds-title">Rounds</h1><button type="button" class="btn primary" data-open="round-form">New round</button></div>
+    <div class="view-head"><h1 id="rounds-title">Rounds</h1>
+      <div class="head-actions"><button type="button" class="btn" data-open="import-form">Import scores</button><button type="button" class="btn primary" data-open="round-form">New round</button></div></div>
+    <form id="import-form" class="panel entry" hidden novalidate>
+      <h2>Import scores</h2>
+      <p class="hint">Paste one round per line: <strong>date, course, tees, holes, score, par, differential</strong>. Tees, par and differential can be left blank. Imported rounds are added to what's already here, and any round that's already in the app is skipped.</p>
+      <label for="import-text">Rounds to import</label>
+      <textarea id="import-text" rows="8" spellcheck="false" placeholder="2026-09-20, Pine Hollow GC, White, 18, 88, 72, 14.2&#10;2026-09-13, Riverbend Municipal, Blue, 9, 44, 36,"></textarea>
+      <p class="hint" id="import-preview" aria-live="polite"></p>
+      <div class="form-actions"><button type="button" class="btn ghost" data-close="import-form">Cancel</button><button type="submit" class="btn primary">Import rounds</button></div>
+    </form>
     <form id="round-form" class="panel entry" hidden novalidate>
       <h2>New round</h2>
+      <fieldset class="seg"><legend>Entry</legend>
+        <label><input type="radio" name="r-mode" id="r-mode-holes" value="holes" checked><span>Hole by hole</span></label>
+        <label><input type="radio" name="r-mode" id="r-mode-total" value="total"><span>Total only</span></label>
+      </fieldset>
       <div class="fields">
         <label>Date<input type="date" id="r-date" required></label>
         <label>Course<input type="text" id="r-course" list="course-list" required placeholder="Pine Hollow GC" autocomplete="off"></label>
@@ -71,6 +84,15 @@
         </fieldset>
       </div>
       <datalist id="course-list"></datalist>
+      <div id="r-total-fields" hidden>
+        <div class="fields">
+          <label>Total score<input type="number" id="r-total" min="18" max="200" inputmode="numeric" placeholder="88"></label>
+          <label>Course par (optional)<input type="number" id="r-par" min="27" max="80" inputmode="numeric" placeholder="72"></label>
+          <label>Differential (optional)<input type="number" id="r-diff" step="0.1" min="-10" max="60" inputmode="decimal" placeholder="14.2"></label>
+        </div>
+        <p class="hint">Total-only rounds count toward your scoring average and trend. Putts, greens and fairways come from hole-by-hole rounds only.</p>
+      </div>
+      <div id="r-hole-fields">
       <p class="hint">Green in regulation is worked out for you: on the green in par minus two strokes.</p>
       <div class="table-scroll">
         <table class="entry-card">
@@ -78,6 +100,7 @@
           <tbody id="r-holes-body"></tbody>
           <tfoot><tr id="r-totals"></tr></tfoot>
         </table>
+      </div>
       </div>
       <label>Notes<textarea id="r-notes" rows="2" placeholder="Wind, what worked, what to practice"></textarea></label>
       <div class="form-actions"><button type="button" class="btn ghost" data-close="round-form">Cancel</button><button type="submit" class="btn primary">Save round</button></div>

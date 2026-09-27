@@ -79,6 +79,10 @@ a { color: var(--green); }
 .view { display: grid; gap: 16px; }
 .view > *, .list > *, .panel > *, .item > * { min-width: 0; }
 .view-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+#import-text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9rem; }
+#r-total-fields { display: grid; gap: 8px; }
+#r-total-fields[hidden], #r-hole-fields[hidden] { display: none; }
 .sub, .hint { color: var(--muted); font-size: .92rem; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: grid; gap: 12px; align-content: start; min-width: 0; }
 .dash-grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
