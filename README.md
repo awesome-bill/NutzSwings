@@ -45,6 +45,29 @@ Use the live version at https://awesome-bill.github.io/NutzSwings/. To try chang
 - **v1.2**: Import reads the GHIN export directly (choose the file or paste it) and keeps score type, course rating, slope, PCC, differential and Used in Handicap. Re-importing updates existing rounds.
 - **v2.0**: Data moves to a Supabase database with email/password sign-in, so it's the same on every device. One-tap move of data saved in the browser by earlier versions. Example data removed.
 - **v2.0.1**: Versioned file links so browsers always load matching files after an update.
+- **v2.1**: Practice and workout routines with a starter weekly plan, scored drills with last/best/target, last-used weights in workouts, routine editor, and a This week plan on the dashboard.
+
+## Routines
+
+Practice and Workouts each have **Routines**: saved sessions you run again and again. Tap **Load starter routines** to get a weekly plan (3 practice sessions + 3 workouts), or **Build my own**.
+
+- **Practice routines** are a list of drills, each with an area, minutes, instructions, and a score: *made out of N* (higher is better) or *strokes* (lower is better). Tap **Start**, tick the drills you did, enter your scores, and save. Each drill then shows your last result, your best, and the target.
+- **Workout routines** fill in the workout form with the exercises, sets and reps, and the weight you used last time for each exercise.
+- **This week** on the dashboard shows workouts and practice done against your plan (Monday to Sunday), with a tick next to each routine you've completed.
+- Edit any routine to rename it, change drills or exercises, reorder them, or delete it. Deleting a routine keeps your past sessions.
+
+The starter plan lives in `starter-routines.js`:
+
+| Day | Session |
+|-----|---------|
+| Mon | Workout A: Strength (lower + pull) |
+| Tue | Practice: Short game + putting |
+| Wed | Workout B: Speed & power |
+| Thu | Practice: Driver + putting |
+| Fri | Workout C: Strength (upper + rotation) |
+| Sat | Practice: Scoring games (or play) |
+
+**Updating from v2.0:** run the whole of `supabase/setup.sql` again in the Supabase SQL Editor. It only adds the new `routines` table and columns, and leaves your data alone.
 
 ## Importing from GHIN
 

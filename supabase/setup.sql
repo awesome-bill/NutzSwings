@@ -74,3 +74,32 @@ create policy "Owner only" on public.practice_sessions for all to authenticated
 drop policy if exists "Owner only" on public.workouts;
 create policy "Owner only" on public.workouts for all to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- =====================================================================
+-- Added in v2.1: routines (practice plans and workout plans)
+-- Safe to re-run: it only adds what isn't there yet.
+-- =====================================================================
+-- items for a practice routine: list of {name, area, minutes, how, score ('none' | 'made' | 'strokes'), outOf, target}
+-- items for a workout routine:  list of {name, sets, reps, load}
+create table if not exists public.routines (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  kind       text not null check (kind in ('practice', 'workout')),
+  name       text not null,
+  day        text not null default '',          -- suggested day: Mon, Tue... or blank
+  focus      text not null default '',          -- workout type (Strength, Speed...) for workouts
+  sort       smallint not null default 0,
+  items      jsonb not null default '[]'::jsonb,
+  notes      text not null default '',
+  created_at timestamptz not null default now()
+);
+create index if not exists routines_user on public.routines (user_id, kind, sort);
+alter table public.routines enable row level security;
+drop policy if exists "Owner only" on public.routines;
+create policy "Owner only" on public.routines for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Sessions remember which routine they came from; practice sessions keep each drill's result.
+alter table public.practice_sessions add column if not exists routine_id uuid references public.routines (id) on delete set null;
+alter table public.practice_sessions add column if not exists drills jsonb;
+alter table public.workouts add column if not exists routine_id uuid references public.routines (id) on delete set null;
