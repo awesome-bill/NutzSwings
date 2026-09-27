@@ -21,15 +21,12 @@ Open `index.html` in a browser, or view the live version on GitHub Pages once it
 
 - **v1**: Dashboard, rounds, practice, and workouts, with example data and backup/restore.
 - **v1.1**: Total-only rounds (date, course, tees, score, optional par and differential) and **Import scores** on the Rounds page for pasting in history such as GHIN. Scoring average and trend use every round; putts, greens and fairways use hole-by-hole rounds only.
+- **v1.2**: Import reads the GHIN export directly (choose the file or paste it) and keeps score type, course rating, slope, PCC, differential and Used in Handicap. Re-importing updates existing rounds.
 
-## Importing scores
+## Importing from GHIN
 
-On **Rounds**, tap **Import scores** and paste one round per line:
+On **Rounds**, tap **Import from GHIN**, then choose your GHIN score history export (.csv) or paste its contents, header row included.
 
-```
-date, course, tees, holes, score, par, differential
-2026-09-20, Pine Hollow GC, White, 18, 88, 72, 14.2
-9/13/2026, Riverbend Municipal, Blue, 9, 44, 36,
-```
+The app reads GHIN's columns by name: Date, Score, Holes, Score Type, Course, Tees, Course Rating, Slope, PCC, Differential, Used in Handicap. Each round shows its score type, rating/slope, PCC, differential, and an **In index** tag when GHIN is using it for your handicap index.
 
-Dates can be `YYYY-MM-DD` or `M/D/YYYY`. Tees, par and differential can be blank. Rounds already in the app (same date, course and score) are skipped, so pasting the same list twice is safe.
+Re-importing is safe. New rounds are added, and rounds already in the app (same date, course, holes and score) get GHIN's latest details. "Used in Handicap" changes as you post new scores, so re-import after each export.

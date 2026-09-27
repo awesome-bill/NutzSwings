@@ -281,10 +281,19 @@
     const list = [...state.rounds].sort(byDateDesc);
     $('#round-list').innerHTML = list.length ? list.map((r) => {
       const s = roundStats(r);
-      const chips = (r.example ? ' <span class="chip plain">Example</span>' : '') + (s.detailed ? '' : ' <span class="chip plain">Total only</span>');
+      const chips = (r.example ? ' <span class="chip plain">Example</span>' : '')
+        + (r.source === 'ghin' ? ' <span class="chip plain">GHIN</span>' : s.detailed ? '' : ' <span class="chip plain">Total only</span>')
+        + (r.usedInHandicap ? ' <span class="chip" title="One of the differentials GHIN is using for your index">In index</span>' : '');
+      const ghinBits = [
+        r.scoreType ? `<span>${esc(r.scoreType)}</span>` : '',
+        r.par ? `<span>Par ${r.par}</span>` : '',
+        r.courseRating != null ? `<span>${r.courseRating.toFixed(1)} / ${r.slope ?? '—'}</span>` : '',
+        r.pcc ? `<span>PCC ${r.pcc > 0 ? '+' : ''}${r.pcc}</span>` : '',
+        r.differential != null ? `<span>Diff ${r.differential.toFixed(1)}</span>` : '',
+      ].join('');
       const statLine = s.detailed
         ? `<div class="item-meta num"><span>${s.putts} putts</span><span>GIR ${s.gir}/${s.holes}</span><span>Fairways ${s.fir}/${s.firChances}</span>${r.differential != null ? `<span>Diff ${r.differential.toFixed(1)}</span>` : ''}</div>`
-        : (r.par || r.differential != null ? `<div class="item-meta num">${r.par ? `<span>Par ${r.par}</span>` : ''}${r.differential != null ? `<span>Differential ${r.differential.toFixed(1)}</span>` : ''}</div>` : '');
+        : (ghinBits ? `<div class="item-meta num">${ghinBits}</div>` : '');
       return `<article class="item" data-id="${r.id}">
         <div class="item-top">
           <div><div class="item-title">${esc(r.course)}${chips}</div>
@@ -415,8 +424,14 @@
     toast(`Round saved: ${s.score}${toParNote(s)}`);
   });
 
-  // ---------- Import (e.g. GHIN score history) ----------
-  // One round per line: date, course, tees, holes, score, par, differential. Commas or tabs.
+  // ---------- GHIN import ----------
+  // Reads the GHIN score history export as-is. Columns are matched by header name, so order doesn't matter:
+  // Date, Score, Holes, Score Type, Course, Tees, Course Rating, Slope, PCC, Differential, Used in Handicap
+  const GHIN_COLUMNS = {
+    date: 'date', score: 'score', holes: 'holes', 'score type': 'scoreType', course: 'course', tees: 'tees',
+    'course rating': 'courseRating', slope: 'slope', pcc: 'pcc', differential: 'differential', 'used in handicap': 'usedInHandicap',
+  };
+  const GHIN_REQUIRED = ['date', 'score', 'holes', 'course'];
   function parseDate(s) {
     const pad = (n) => String(n).padStart(2, '0');
     let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
@@ -425,47 +440,97 @@
     if (m) return `${m[3].length === 2 ? '20' + m[3] : m[3]}-${pad(m[1])}-${pad(m[2])}`;
     return null;
   }
-  const sameRound = (a, b) => a.date === b.date && a.course.toLowerCase() === b.course.toLowerCase() && roundStats(a).score === roundStats(b).score;
-  function parseImport(text) {
-    const fresh = [], skipped = [], bad = [];
-    text.split(/\r?\n/).forEach((line, i) => {
-      if (!line.trim() || line.trim().startsWith('#')) return;
-      const cols = (line.includes('\t') ? line.split('\t') : line.split(',')).map((c) => c.trim());
-      if (/^date$/i.test(cols[0])) return; // header row
-      const [d = '', course = '', tees = '', holes = '', score = '', par = '', diff = ''] = cols;
-      const date = parseDate(d);
-      const count = holes ? parseInt(holes, 10) : 18;
-      const total = parseInt(score, 10);
-      const p = parseInt(par, 10);
-      const df = parseFloat(diff);
-      if (!date || !course || (count !== 9 && count !== 18) || !(total >= count && total <= count * 10) || (par && !(p >= count * 3 && p <= count * 5))) { bad.push(i + 1); return; }
-      const r = { id: uid(), date, course, tees, holeCount: count, total, notes: '', source: 'import' };
-      if (p) r.par = p;
-      if (!isNaN(df)) r.differential = df;
-      if (state.rounds.some((x) => sameRound(x, r)) || fresh.some((x) => sameRound(x, r))) skipped.push(r); else fresh.push(r);
-    });
-    return { fresh, skipped, bad };
+  // CSV rows, honouring quoted fields (a course name can contain a comma)
+  function csvRows(text) {
+    const rows = []; let row = [], field = '', quoted = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (quoted) {
+        if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+        else if (c === '"') quoted = false;
+        else field += c;
+      } else if (c === '"') quoted = true;
+      else if (c === ',' || c === '\t') { row.push(field); field = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(field); rows.push(row); row = []; field = '';
+      } else field += c;
+    }
+    if (field || row.length) { row.push(field); rows.push(row); }
+    return rows.map((r) => r.map((f) => f.trim())).filter((r) => r.some((f) => f));
   }
-  function importSummary({ fresh, skipped, bad }) {
-    const parts = [];
-    parts.push(`${fresh.length} round${fresh.length === 1 ? '' : 's'} ready to import`);
-    if (skipped.length) parts.push(`${skipped.length} already in the app`);
-    if (bad.length) parts.push(`couldn’t read line${bad.length === 1 ? '' : 's'} ${bad.join(', ')}`);
+  const num = (s) => (s === '' || s == null || isNaN(parseFloat(s)) ? null : parseFloat(s));
+  const sameRound = (a, b) => a.date === b.date && a.course.toLowerCase() === b.course.toLowerCase()
+    && holeCount(a) === holeCount(b) && roundStats(a).score === roundStats(b).score;
+  function parseGhin(text) {
+    const rows = csvRows(text.replace(/^﻿/, ''));
+    const out = { fresh: [], updates: [], unchanged: 0, bad: [], error: null };
+    if (!rows.length) return out;
+    const header = rows[0].map((h) => h.toLowerCase());
+    const col = {};
+    header.forEach((h, i) => { if (GHIN_COLUMNS[h]) col[GHIN_COLUMNS[h]] = i; });
+    const missing = GHIN_REQUIRED.filter((k) => col[GHIN_COLUMNS[k]] == null);
+    if (missing.length) { out.error = `This doesn’t look like a GHIN export. It needs the header row with ${missing.map((k) => `“${k[0].toUpperCase() + k.slice(1)}”`).join(', ')}.`; return out; }
+    const get = (r, key) => (col[key] == null ? '' : r[col[key]] ?? '');
+    rows.slice(1).forEach((r, i) => {
+      const line = i + 2;
+      const date = parseDate(get(r, 'date'));
+      const course = get(r, 'course');
+      const count = parseInt(get(r, 'holes'), 10);
+      const total = parseInt(get(r, 'score'), 10);
+      if (!date || !course || (count !== 9 && count !== 18) || !(total >= count && total <= count * 10)) { out.bad.push(line); return; }
+      const used = get(r, 'usedInHandicap').toLowerCase();
+      const ghin = {
+        scoreType: get(r, 'scoreType'), tees: get(r, 'tees'),
+        courseRating: num(get(r, 'courseRating')), slope: num(get(r, 'slope')), pcc: num(get(r, 'pcc')),
+        differential: num(get(r, 'differential')), usedInHandicap: used === 'yes' ? true : used === 'no' ? false : null,
+      };
+      const r2 = { id: uid(), date, course, holeCount: count, total, notes: '', source: 'ghin', ...ghin };
+      const existing = state.rounds.find((x) => sameRound(x, r2));
+      if (existing) {
+        // Already here: refresh the GHIN fields (e.g. "Used in Handicap" changes as new scores are posted)
+        const changed = Object.keys(ghin).some((k) => (existing[k] ?? null) !== (ghin[k] ?? null) && !(k === 'tees' && !ghin.tees));
+        if (changed) out.updates.push({ existing, ghin }); else out.unchanged++;
+      } else if (!out.fresh.some((x) => sameRound(x, r2))) out.fresh.push(r2);
+    });
+    return out;
+  }
+  function importSummary(res) {
+    if (res.error) return res.error;
+    const parts = [`${res.fresh.length} new round${res.fresh.length === 1 ? '' : 's'}`];
+    if (res.updates.length) parts.push(`${res.updates.length} to update`);
+    if (res.unchanged) parts.push(`${res.unchanged} already up to date`);
+    if (res.bad.length) parts.push(`couldn’t read line${res.bad.length === 1 ? '' : 's'} ${res.bad.join(', ')}`);
     return parts.join(' · ');
   }
-  function resetImportForm() { $('#import-form').reset(); $('#import-preview').textContent = ''; }
-  $('#import-text').addEventListener('input', () => {
+  function previewImport() {
     const text = $('#import-text').value;
-    $('#import-preview').textContent = text.trim() ? importSummary(parseImport(text)) : '';
+    $('#import-preview').textContent = text.trim() ? importSummary(parseGhin(text)) : '';
+  }
+  function resetImportForm() { $('#import-form').reset(); $('#import-preview').textContent = ''; }
+  $('#import-text').addEventListener('input', previewImport);
+  $('#import-file').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    file.text().then((text) => { $('#import-text').value = text; previewImport(); }, () => toast('Couldn’t read that file'));
   });
   $('#import-form').addEventListener('submit', (e) => {
     e.preventDefault();
-    const result = parseImport($('#import-text').value);
-    if (!result.fresh.length) { toast(result.bad.length ? 'Nothing imported. Check the lines listed below.' : 'No new rounds to import'); $('#import-preview').textContent = importSummary(result); return; }
-    if (result.bad.length) { toast(`Fix or remove line${result.bad.length === 1 ? '' : 's'} ${result.bad.join(', ')} first`); $('#import-preview').textContent = importSummary(result); return; }
-    state.rounds.push(...result.fresh);
+    const res = parseGhin($('#import-text').value);
+    $('#import-preview').textContent = importSummary(res);
+    if (res.error) { toast('That isn’t a GHIN score export'); return; }
+    if (res.bad.length) { toast(`Fix or remove line${res.bad.length === 1 ? '' : 's'} ${res.bad.join(', ')} first`); return; }
+    if (!res.fresh.length && !res.updates.length) { toast('Everything is already up to date'); return; }
+    state.rounds.push(...res.fresh);
+    res.updates.forEach(({ existing, ghin }) => {
+      Object.entries(ghin).forEach(([k, v]) => { if (!(k === 'tees' && !v)) existing[k] = v; });
+      existing.source = existing.source || 'ghin';
+    });
     save(); closeForm('import-form'); renderAll();
-    toast(`Imported ${result.fresh.length} round${result.fresh.length === 1 ? '' : 's'}${result.skipped.length ? ` (${result.skipped.length} already here)` : ''}`);
+    const bits = [];
+    if (res.fresh.length) bits.push(`${res.fresh.length} added`);
+    if (res.updates.length) bits.push(`${res.updates.length} updated`);
+    toast(`GHIN import: ${bits.join(', ')}`);
   });
 
   // ---------- Practice ----------
