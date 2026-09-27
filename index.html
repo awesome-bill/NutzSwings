@@ -59,12 +59,13 @@
   <!-- ROUNDS -->
   <section id="view-rounds" class="view" hidden aria-labelledby="rounds-title">
     <div class="view-head"><h1 id="rounds-title">Rounds</h1>
-      <div class="head-actions"><button type="button" class="btn" data-open="import-form">Import scores</button><button type="button" class="btn primary" data-open="round-form">New round</button></div></div>
+      <div class="head-actions"><button type="button" class="btn" data-open="import-form">Import from GHIN</button><button type="button" class="btn primary" data-open="round-form">New round</button></div></div>
     <form id="import-form" class="panel entry" hidden novalidate>
-      <h2>Import scores</h2>
-      <p class="hint">Paste one round per line: <strong>date, course, tees, holes, score, par, differential</strong>. Tees, par and differential can be left blank. Imported rounds are added to what's already here, and any round that's already in the app is skipped.</p>
-      <label for="import-text">Rounds to import</label>
-      <textarea id="import-text" rows="8" spellcheck="false" placeholder="2026-09-20, Pine Hollow GC, White, 18, 88, 72, 14.2&#10;2026-09-13, Riverbend Municipal, Blue, 9, 44, 36,"></textarea>
+      <h2>Import from GHIN</h2>
+      <p class="hint">Choose your GHIN score history export (.csv), or paste its contents below, header row included. New rounds are added. Rounds already here are updated with GHIN's latest details, such as whether they count toward your index.</p>
+      <label class="file-pick">Choose GHIN file<input type="file" id="import-file" accept=".csv,text/csv,text/plain"></label>
+      <label for="import-text">Or paste it here</label>
+      <textarea id="import-text" rows="8" spellcheck="false" placeholder="Date,Score,Holes,Score Type,Course,Tees,Course Rating,Slope,PCC,Differential,Used in Handicap&#10;2026-06-28,78,18,Away,Passaconaway Country Club,,69.5,127,,7.6,No"></textarea>
       <p class="hint" id="import-preview" aria-live="polite"></p>
       <div class="form-actions"><button type="button" class="btn ghost" data-close="import-form">Cancel</button><button type="submit" class="btn primary">Import rounds</button></div>
     </form>
