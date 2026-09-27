@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
-<link rel="stylesheet" href="styles.css?v=2.0.1">
+<link rel="stylesheet" href="styles.css?v=2.1.0">
 </head>
 <body>
 <header class="top">
@@ -65,7 +65,7 @@
     <div class="dash-grid">
       <article class="panel"><h2>Scoring trend</h2><p class="hint">Last 10 eighteen-hole rounds</p><div id="trend"></div></article>
       <article class="panel"><h2>Practice, last 30 days</h2><p class="hint">Minutes by area</p><div id="practice-bars"></div></article>
-      <article class="panel"><h2>Last 7 days</h2><div id="week"></div></article>
+      <article class="panel"><h2>This week</h2><p class="hint" id="week-range"></p><div id="week"></div></article>
       <article class="panel"><h2>Recent activity</h2><ul class="feed" id="feed"></ul></article>
     </div>
     <article class="panel data-panel">
@@ -140,7 +140,21 @@
 
   <!-- PRACTICE -->
   <section id="view-practice" class="view" hidden aria-labelledby="practice-title">
-    <div class="view-head"><h1 id="practice-title">Practice</h1><button type="button" class="btn primary" data-open="practice-form">Log session</button></div>
+    <div class="view-head"><h1 id="practice-title">Practice</h1><button type="button" class="btn" data-open="practice-form">Log other session</button></div>
+    <div id="practice-routines" class="routines"></div>
+    <form id="practice-run-form" class="panel entry" hidden novalidate>
+      <h2 id="run-title">Practice session</h2>
+      <p class="hint" id="run-notes-hint"></p>
+      <div class="fields">
+        <label>Date<input type="date" id="run-date" required></label>
+        <label>Balls hit<input type="number" id="run-balls" min="0" max="2000" inputmode="numeric" placeholder="0"></label>
+      </div>
+      <div id="run-drills" class="drills"></div>
+      <p class="hint" id="run-total"></p>
+      <fieldset class="rating"><legend>How it went</legend><div id="run-rating" class="rating-row"></div></fieldset>
+      <label>Notes<textarea id="run-notes" rows="2" placeholder="What clicked, what to work on next time"></textarea></label>
+      <div class="form-actions"><button type="button" class="btn ghost" data-close="practice-run-form">Cancel</button><button type="submit" class="btn primary">Save session</button></div>
+    </form>
     <form id="practice-form" class="panel entry" hidden novalidate>
       <h2>Practice session</h2>
       <div class="fields">
@@ -154,14 +168,17 @@
       <label>Notes<textarea id="p-notes" rows="2"></textarea></label>
       <div class="form-actions"><button type="button" class="btn ghost" data-close="practice-form">Cancel</button><button type="submit" class="btn primary">Save session</button></div>
     </form>
+    <h2 class="list-head">History</h2>
     <div id="practice-list" class="list"></div>
   </section>
 
   <!-- WORKOUTS -->
   <section id="view-workouts" class="view" hidden aria-labelledby="workouts-title">
-    <div class="view-head"><h1 id="workouts-title">Workouts</h1><button type="button" class="btn primary" data-open="workout-form">Log workout</button></div>
+    <div class="view-head"><h1 id="workouts-title">Workouts</h1><button type="button" class="btn" data-open="workout-form">Log other workout</button></div>
+    <div id="workout-routines" class="routines"></div>
     <form id="workout-form" class="panel entry" hidden novalidate>
-      <h2>Workout</h2>
+      <h2 id="w-title">Workout</h2>
+      <p class="hint" id="w-routine-hint" hidden></p>
       <div class="fields">
         <label>Date<input type="date" id="w-date" required></label>
         <label>Type<select id="w-type"></select></label>
@@ -174,13 +191,29 @@
       <label>Notes<textarea id="w-notes" rows="2"></textarea></label>
       <div class="form-actions"><button type="button" class="btn ghost" data-close="workout-form">Cancel</button><button type="submit" class="btn primary">Save workout</button></div>
     </form>
+    <h2 class="list-head">History</h2>
     <div id="workout-list" class="list"></div>
   </section>
+
+  <!-- ROUTINE EDITOR (moved into Practice or Workouts when opened) -->
+  <form id="routine-form" class="panel entry" hidden novalidate>
+    <h2 id="rf-title">Routine</h2>
+    <div class="fields">
+      <label>Name<input type="text" id="rf-name" placeholder="Short game + putting"></label>
+      <label>Suggested day<select id="rf-day"><option value="">Any day</option><option>Mon</option><option>Tue</option><option>Wed</option><option>Thu</option><option>Fri</option><option>Sat</option><option>Sun</option></select></label>
+      <label id="rf-type-wrap">Workout type<select id="rf-type"></select></label>
+    </div>
+    <label>Focus and notes<textarea id="rf-notes" rows="2" placeholder="What this session is for"></textarea></label>
+    <div id="rf-items" class="rf-items"></div>
+    <button type="button" class="btn small" id="rf-add">Add drill</button>
+    <div class="form-actions"><button type="button" class="btn danger ghost" id="rf-delete">Delete routine</button><button type="button" class="btn ghost" id="rf-cancel">Cancel</button><button type="submit" class="btn primary">Save routine</button></div>
+  </form>
 </main>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js?v=2.0.1"></script>
-<script src="app.js?v=2.0.1"></script>
+<script src="config.js?v=2.1.0"></script>
+<script src="starter-routines.js?v=2.1.0"></script>
+<script src="app.js?v=2.1.0"></script>
 </body>
 </html>

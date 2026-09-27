@@ -231,3 +231,54 @@ legend { font-size: .85rem; font-weight: 600; color: var(--muted); padding: 0; m
   .bar-fill { transition: width .4s ease; }
   .btn { transition: background-color .15s, border-color .15s; }
 }
+
+/* ---------- Routines ---------- */
+.routines { display: grid; gap: 10px; }
+.routines:empty { display: none; }
+.routines-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.routines-head h2, .list-head { font-size: 1.2rem; margin: 6px 0 0; }
+.routine-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.routine { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.routine-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 22px; }
+.routine .day, .plan .day { font-family: var(--display); font-weight: 700; font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; color: var(--green); }
+.routine-preview { margin: 0; font-size: .85rem; color: var(--muted); }
+.routine .row-actions { margin-top: 4px; }
+.routine-empty p { margin: 0; }
+
+/* Running a practice routine */
+.drills { display: grid; gap: 8px; }
+.drill { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; background: var(--bg); }
+.drill-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.drill-done { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: 1rem; }
+.drill-done input { width: 20px; height: 20px; accent-color: var(--green); }
+.drill-name { font-weight: 700; }
+.drill-meta { font-size: .82rem; color: var(--muted); }
+.drill-how { margin: 0; font-size: .88rem; color: var(--muted); }
+.drill-score { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+label.inline { display: inline-flex; align-items: center; gap: 8px; }
+label.inline input { width: 5rem; text-align: center; }
+.drill-stats { font-size: .82rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rating-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.drill-results { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: .9rem; }
+.drill-results li { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px dashed var(--line); padding: 3px 0; }
+.drill-results .hit { color: var(--green); font-weight: 700; }
+
+/* Routine editor */
+.rf-items { display: grid; gap: 8px; }
+.rf-item { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; background: var(--bg); }
+.rf-grid { display: grid; gap: 8px; }
+.rf-grid.practice { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.rf-grid.workout { grid-template-columns: minmax(0, 2fr) repeat(3, minmax(70px, 1fr)); }
+.rf-grid .wide { grid-column: 1 / -1; }
+.rf-item-actions { display: flex; justify-content: flex-end; gap: 14px; }
+@media (max-width: 520px) { .rf-grid.workout { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* This week */
+.meter { display: grid; gap: 4px; }
+.meter-top { display: flex; justify-content: space-between; gap: 10px; font-size: .9rem; }
+.meter-top strong { font-family: var(--display); font-size: 1.3rem; }
+.plan { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; font-size: .92rem; }
+.plan li { display: grid; grid-template-columns: 1.2rem 2.6rem 1fr auto; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); }
+.plan li.done { color: var(--muted); }
+.plan li.done > span:nth-child(3) { text-decoration: line-through; }
+.plan .tick { color: var(--green); font-weight: 700; }
