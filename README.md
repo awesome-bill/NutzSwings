@@ -46,6 +46,7 @@ Use the live version at https://awesome-bill.github.io/NutzSwings/. To try chang
 - **v2.0**: Data moves to a Supabase database with email/password sign-in, so it's the same on every device. One-tap move of data saved in the browser by earlier versions. Example data removed.
 - **v2.0.1**: Versioned file links so browsers always load matching files after an update.
 - **v2.1**: Practice and workout routines with a starter weekly plan, scored drills with last/best/target, last-used weights in workouts, routine editor, and a This week plan on the dashboard.
+- **v2.2**: Calendar on the dashboard: a month view with dots for rounds, practice and workouts, your weekly plan shown on upcoming days, and a details list when you tap a day.
 
 ## Routines
 
@@ -53,6 +54,7 @@ Practice and Workouts each have **Routines**: saved sessions you run again and a
 
 - **Practice routines** are a list of drills, each with an area, minutes, instructions, and a score: *made out of N* (higher is better) or *strokes* (lower is better). Tap **Start**, tick the drills you did, enter your scores, and save. Each drill then shows your last result, your best, and the target.
 - **Workout routines** fill in the workout form with the exercises, sets and reps, and the weight you used last time for each exercise.
+- **Calendar** on the dashboard shows each month with a dot for every round, practice session and workout you logged. Hollow dots are sessions from your weekly plan that are still ahead. Tap a day to see what happened (or what's planned) and use the arrows to move between months.
 - **This week** on the dashboard shows workouts and practice done against your plan (Monday to Sunday), with a tick next to each routine you've completed.
 - Edit any routine to rename it, change drills or exercises, reorder them, or delete it. Deleting a routine keeps your past sessions.
 
