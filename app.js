@@ -256,6 +256,7 @@
     $('#trend').innerHTML = trendChart(full.slice(0, 10).reverse());
     renderPracticeBars();
     renderWeek();
+    renderCalendar();
     renderFeed();
 
     const total = state.rounds.length + state.practice.length + state.workouts.length;
@@ -318,6 +319,75 @@
     $('#week-range').textContent = `${fmtDate(start)} – ${fmtDate(isoDaysAgo((new Date().getDay() + 6) % 7 - 6))} · ${r.length} round${r.length === 1 ? '' : 's'} played`;
     $('#week').innerHTML = meter('Workouts', w.length, goal('workout'), sum(w)) + meter('Practice', p.length, goal('practice'), sum(p)) + planList;
   }
+
+  // ---------- Calendar ----------
+  // Month view of logged rounds, practice and workouts, plus the weekly plan on today and later days.
+  let calMonth = null;     // first day of the month on show
+  let calSelected = null;  // ISO date whose details are open
+  const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  function calEntries(iso) {
+    const on = (arr) => arr.filter((x) => x.date === iso);
+    return { rounds: on(state.rounds), practice: on(state.practice), workouts: on(state.workouts) };
+  }
+  function calPlanned(iso) {
+    if (iso < todayISO()) return [];
+    const day = DAYS[(parseISO(iso).getDay() + 6) % 7];
+    const e = calEntries(iso);
+    const doneIds = new Set([...e.practice, ...e.workouts].map((x) => x.routineId).filter(Boolean));
+    return state.routines.filter((r) => r.day === day && !doneIds.has(r.id)).sort((a, b) => a.sort - b.sort);
+  }
+  function renderCalendar() {
+    if (!calMonth) { const n = new Date(); calMonth = new Date(n.getFullYear(), n.getMonth(), 1); calSelected = todayISO(); }
+    const y = calMonth.getFullYear(), m = calMonth.getMonth();
+    $('#cal-month').textContent = calMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    const lead = (calMonth.getDay() + 6) % 7; // Monday-first grid
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const cells = Math.ceil((lead + daysInMonth) / 7) * 7;
+    const today = todayISO();
+    let html = `<div class="cal-grid" role="grid" aria-label="${esc($('#cal-month').textContent)}">` + DAYS.map((d) => `<div class="cal-dow" role="columnheader">${d}</div>`).join('');
+    for (let i = 0; i < cells; i++) {
+      const d = new Date(y, m, 1 - lead + i);
+      const iso = isoOf(d);
+      const inMonth = d.getMonth() === m;
+      const e = calEntries(iso);
+      const planned = calPlanned(iso).length;
+      const dots = (e.rounds.length ? '<i class="cal-dot round"></i>' : '') + (e.practice.length ? '<i class="cal-dot practice"></i>' : '')
+        + (e.workouts.length ? '<i class="cal-dot workout"></i>' : '') + (planned ? '<i class="cal-dot planned"></i>' : '');
+      const label = `${d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}${e.rounds.length ? ', round played' : ''}${e.practice.length ? ', practice' : ''}${e.workouts.length ? ', workout' : ''}${planned ? ', planned session' : ''}`;
+      html += `<button type="button" role="gridcell" class="cal-day${inMonth ? '' : ' out'}${iso === today ? ' today' : ''}${iso === calSelected ? ' selected' : ''}" data-date="${iso}" aria-label="${esc(label)}"${iso === calSelected ? ' aria-selected="true"' : ''}><span class="n num">${d.getDate()}</span><span class="dots">${dots}</span></button>`;
+    }
+    $('#cal-grid').innerHTML = html + '</div>';
+    renderCalendarDetail();
+  }
+  function renderCalendarDetail() {
+    if (!calSelected) { $('#cal-detail').innerHTML = ''; return; }
+    const e = calEntries(calSelected);
+    const rows = [
+      ...e.rounds.map((r) => { const s = roundStats(r); return `<li><span class="chip">Round</span><span>${esc(r.course)} · ${s.score}${toParNote(s)}</span></li>`; }),
+      ...e.practice.map((p) => `<li><span class="chip sand">Practice</span><span>${esc(routineName(p.routineId) || p.area)} · ${p.minutes} min</span></li>`),
+      ...e.workouts.map((w) => `<li><span class="chip plain">Workout</span><span>${esc(routineName(w.routineId) || w.type)} · ${w.minutes} min</span></li>`),
+      ...calPlanned(calSelected).map((r) => `<li class="planned"><span class="chip ${r.kind === 'practice' ? 'sand' : 'plain'}">Planned</span><span>${esc(r.name)}</span></li>`),
+    ];
+    const rel = daysSince(calSelected) === 0 ? ' · Today' : '';
+    $('#cal-detail').innerHTML = `<h3>${esc(fmtDate(calSelected, true))}${rel}</h3>`
+      + (rows.length ? `<ul class="feed">${rows.join('')}</ul>` : '<p class="empty">Nothing logged or planned.</p>');
+  }
+  function calGo(delta) {
+    calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + delta, 1);
+    calSelected = null;
+    renderCalendar();
+  }
+  $('#cal-prev').addEventListener('click', () => calGo(-1));
+  $('#cal-next').addEventListener('click', () => calGo(1));
+  $('#cal-today').addEventListener('click', () => { calMonth = null; renderCalendar(); });
+  $('#cal-grid').addEventListener('click', (ev) => {
+    const b = ev.target.closest('.cal-day');
+    if (!b) return;
+    calSelected = b.dataset.date;
+    const d = parseISO(calSelected);
+    if (d.getMonth() !== calMonth.getMonth()) calMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+    renderCalendar();
+  });
 
   function renderFeed() {
     const items = [
