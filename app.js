@@ -217,8 +217,12 @@
   }
 
   // ---------- Navigation ----------
-  const VIEWS = ['dashboard', 'rounds', 'practice', 'workouts'];
-  function currentView() { const h = location.hash.slice(1); return VIEWS.includes(h) ? h : 'dashboard'; }
+  const VIEWS = ['analytics', 'calendar', 'rounds', 'practice', 'workouts'];
+  function currentView() {
+    const h = location.hash.slice(1);
+    if (h === 'dashboard') return 'analytics'; // the Analytics page used to be called Dashboard; old links still work
+    return VIEWS.includes(h) ? h : 'analytics';
+  }
   function showView() {
     const v = currentView();
     VIEWS.forEach((name) => { $(`#view-${name}`).hidden = name !== v; });
@@ -228,8 +232,8 @@
   }
   window.addEventListener('hashchange', showView);
 
-  // ---------- Dashboard ----------
-  function renderDashboard() {
+  // ---------- Analytics ----------
+  function renderAnalytics() {
     const rounds = [...state.rounds].sort(byDateDesc);
     // Scoring uses every 18-hole round; putts, greens and fairways use hole-by-hole rounds only.
     const full = rounds.filter((r) => holeCount(r) === 18);
@@ -256,11 +260,10 @@
     $('#trend').innerHTML = trendChart(full.slice(0, 10).reverse());
     renderPracticeBars();
     renderWeek();
-    renderCalendar();
     renderFeed();
 
     const total = state.rounds.length + state.practice.length + state.workouts.length;
-    $('#dash-sub').textContent = `${state.rounds.length} rounds · ${state.practice.length} practice sessions · ${state.workouts.length} workouts`;
+    $('#analytics-sub').textContent = `${state.rounds.length} rounds · ${state.practice.length} practice sessions · ${state.workouts.length} workouts`;
     $('#storage-note').textContent = `${total} entries saved to your account${currentUser ? ` (${currentUser.email})` : ''}. They're the same on any device you sign in from.`;
     const legacy = legacyData();
     $('#migrate-banner').hidden = !legacy || migrateDismissed;
@@ -321,7 +324,7 @@
   }
 
   // ---------- Calendar ----------
-  // Month view of logged rounds, practice and workouts, plus the weekly plan on today and later days.
+  // Calendar page: month view of logged rounds, practice and workouts, booked trip rounds, and the weekly plan on today and later days.
   let calMonth = null;     // first day of the month on show
   let calSelected = null;  // ISO date whose details are open
   const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -1189,6 +1192,6 @@
     state.workouts.forEach((w) => w.exercises.forEach((x) => x.name && names.add(x.name)));
     $('#exercise-list').innerHTML = [...names].sort().map((x) => `<option value="${esc(x)}"></option>`).join('');
   }
-  function renderAll() { renderDashboard(); renderRounds(); renderPractice(); renderWorkouts(); renderRoutines('practice'); renderRoutines('workout'); renderExerciseList(); }
+  function renderAll() { renderAnalytics(); renderCalendar(); renderRounds(); renderPractice(); renderWorkouts(); renderRoutines('practice'); renderRoutines('workout'); renderExerciseList(); }
   boot();
 })();

@@ -5,7 +5,8 @@ A personal golf app for tracking the three things that make a better golfer:
 - **Rounds**: hole-by-hole scorecard with putts and fairways. Greens in regulation are worked out automatically.
 - **Practice**: range and short-game sessions by area, with minutes, balls hit, the drill, and how it went.
 - **Workouts**: golf fitness sessions with exercises, sets, reps, and load.
-- **Dashboard**: scoring average, putts per round, GIR %, fairways %, a scoring trend chart, and practice minutes by area.
+- **Analytics**: scoring average, putts per round, GIR %, fairways %, a scoring trend chart, practice minutes by area, this week's plan, and recent activity.
+- **Calendar**: a month view of rounds, practice and workouts, with booked trip rounds and your weekly plan on upcoming days.
 
 ## How it works
 
@@ -16,7 +17,7 @@ Your data lives in your own **Supabase** database (a hosted Postgres database wi
 - `config.js` holds the database address and its public key.
 - `supabase/setup.sql` creates the tables: `rounds`, `practice_sessions`, `workouts`. Row level security means each row can only be read or changed by the account that owns it, so the public key on its own can't reach anything.
 
-**Copy backup** on the dashboard still gives you a full copy as text. **Restore from backup** adds back anything that's missing.
+**Copy backup** on the Analytics page still gives you a full copy as text. **Restore from backup** adds back anything that's missing.
 
 ## Setting up your database (one time)
 
@@ -26,7 +27,7 @@ Your data lives in your own **Supabase** database (a hosted Postgres database wi
 4. **Close the door behind you.** In the Authentication settings (**Sign In / Providers**), turn off **Allow new users to sign up**. Now nobody else can create an account.
 5. **Set the site address** so password-reset emails link back to the app. In **Authentication**, then **URL Configuration**, set **Site URL** to `https://awesome-bill.github.io/NutzSwings/`.
 6. **Connect the app.** Click **Connect** at the top of the project and copy the **Project URL** and the **publishable** (or "anon public") key into `config.js`. Never use the secret / service_role key.
-7. Open the app, sign in, and use **Move them to my account** on the dashboard to bring over anything saved in that browser from before.
+7. Open the app, sign in, and use **Move them to my account** on the Analytics page to bring over anything saved in that browser from before.
 
 Free Supabase projects pause after about a week without any use. If the app says it can't load your data, open the Supabase dashboard and click **Restore project**.
 
@@ -47,7 +48,8 @@ Use the live version at https://awesome-bill.github.io/NutzSwings/. To try chang
 - **v2.0.1**: Versioned file links so browsers always load matching files after an update.
 - **v2.1**: Practice and workout routines with a starter weekly plan, scored drills with last/best/target, last-used weights in workouts, routine editor, and a This week plan on the dashboard.
 - **v2.2**: Calendar on the dashboard: a month view with dots for rounds, practice and workouts, your weekly plan shown on upcoming days, and a details list when you tap a day.
-- **v2.3**: Booked trip rounds on the dashboard calendar. `trip-rounds.js` lists upcoming rounds (date, course, tee time, course details); they show as hollow green dots, and tapping a day lists the course and tee time. Logging a round at that course on that date replaces the booked entry. First trip: Myrtle Beach, Oct 14 to 17, 2026.
+- **v2.3**: Booked trip rounds on the calendar. `trip-rounds.js` lists upcoming rounds (date, course, tee time, course details); they show as hollow green dots, and tapping a day lists the course and tee time. Logging a round at that course on that date replaces the booked entry. First trip: Myrtle Beach, Oct 14 to 17, 2026.
+- **v2.4**: The calendar moves out of the dashboard into its own **Calendar** tab, and the Dashboard tab is now **Analytics**. Old `#dashboard` links still open Analytics. No database change.
 
 ## Trip rounds
 
@@ -59,8 +61,8 @@ Practice and Workouts each have **Routines**: saved sessions you run again and a
 
 - **Practice routines** are a list of drills, each with an area, minutes, instructions, and a score: *made out of N* (higher is better) or *strokes* (lower is better). Tap **Start**, tick the drills you did, enter your scores, and save. Each drill then shows your last result, your best, and the target.
 - **Workout routines** fill in the workout form with the exercises, sets and reps, and the weight you used last time for each exercise.
-- **Calendar** on the dashboard shows each month with a dot for every round, practice session and workout you logged. Hollow dots are sessions from your weekly plan that are still ahead. Tap a day to see what happened (or what's planned) and use the arrows to move between months.
-- **This week** on the dashboard shows workouts and practice done against your plan (Monday to Sunday), with a tick next to each routine you've completed.
+- **Calendar** (its own tab) shows each month with a dot for every round, practice session and workout you logged. Hollow dots are sessions from your weekly plan that are still ahead. Tap a day to see what happened (or what's planned) and use the arrows to move between months.
+- **This week** on the Analytics page shows workouts and practice done against your plan (Monday to Sunday), with a tick next to each routine you've completed.
 - Edit any routine to rename it, change drills or exercises, reorder them, or delete it. Deleting a routine keeps your past sessions.
 
 The starter plan lives in `starter-routines.js`:
