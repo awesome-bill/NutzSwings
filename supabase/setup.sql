@@ -103,3 +103,23 @@ create policy "Owner only" on public.routines for all to authenticated
 alter table public.practice_sessions add column if not exists routine_id uuid references public.routines (id) on delete set null;
 alter table public.practice_sessions add column if not exists drills jsonb;
 alter table public.workouts add column if not exists routine_id uuid references public.routines (id) on delete set null;
+
+-- =====================================================================
+-- Added in v2.5: scheduled rounds (rounds you plan from the Calendar)
+-- Safe to re-run: it only adds what isn't there yet.
+-- =====================================================================
+create table if not exists public.scheduled_rounds (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  date       date not null,
+  tee_time   text not null default '',          -- 24-hour "HH:MM", or blank
+  course     text not null,
+  tees       text not null default '',
+  hole_count smallint not null default 18 check (hole_count in (9, 18)),
+  created_at timestamptz not null default now()
+);
+create index if not exists scheduled_rounds_user_date on public.scheduled_rounds (user_id, date);
+alter table public.scheduled_rounds enable row level security;
+drop policy if exists "Owner only" on public.scheduled_rounds;
+create policy "Owner only" on public.scheduled_rounds for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));

@@ -71,9 +71,11 @@
   const configured = !!(CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase);
   const recoveryLink = /type=recovery/.test(location.hash); // arrived from a "reset password" email
   const sb = configured ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey) : null;
-  const TABLES = { rounds: 'rounds', practice: 'practice_sessions', workouts: 'workouts', routines: 'routines' };
-  const emptyState = () => ({ rounds: [], practice: [], workouts: [], routines: [] });
+  const TABLES = { rounds: 'rounds', practice: 'practice_sessions', workouts: 'workouts', routines: 'routines', scheduled: 'scheduled_rounds' };
+  const emptyState = () => ({ rounds: [], practice: [], workouts: [], routines: [], scheduled: [] });
   let routinesMissing = false; // true until the v2.1 part of supabase/setup.sql has been run
+  let scheduledMissing = false; // true until the v2.5 part of supabase/setup.sql has been run
+  const tableMissing = (k) => (k === 'routines' && routinesMissing) || (k === 'scheduled' && scheduledMissing);
   let state = emptyState();
   let currentUser = null;
   const n = (v) => (v == null ? null : Number(v));
@@ -101,6 +103,7 @@
       return row;
     },
     routines: (r) => ({ kind: r.kind, name: r.name, day: r.day || '', focus: r.type || '', sort: r.sort || 0, items: r.items || [], notes: r.notes || '' }),
+    scheduled: (r) => ({ date: r.date, tee_time: r.teeTime || '', course: r.course, tees: r.tees || '', hole_count: r.holeCount === 9 ? 9 : 18 }),
   };
   const fromRow = {
     rounds: (x) => {
@@ -114,14 +117,19 @@
       routineId: x.routine_id || null, drills: Array.isArray(x.drills) ? x.drills : null }),
     workouts: (x) => ({ id: x.id, date: x.date, type: x.type, minutes: x.minutes, exercises: x.exercises || [], notes: x.notes || '', routineId: x.routine_id || null }),
     routines: (x) => ({ id: x.id, kind: x.kind, name: x.name, day: x.day || '', type: x.focus || '', sort: x.sort || 0, items: x.items || [], notes: x.notes || '' }),
+    scheduled: (x) => ({ id: x.id, date: x.date, teeTime: x.tee_time || '', course: x.course, tees: x.tees || '', holeCount: x.hole_count === 9 ? 9 : 18 }),
   };
   async function dbLoad() {
     const kinds = Object.keys(TABLES);
-    const results = await Promise.all(kinds.map((k) => sb.from(TABLES[k]).select('*').order(k === 'routines' ? 'sort' : 'date', { ascending: k === 'routines' })));
+    const results = await Promise.all(kinds.map((k) => sb.from(TABLES[k]).select('*').order(k === 'routines' ? 'sort' : 'date', { ascending: k === 'routines' || k === 'scheduled' })));
     // The routines table arrived in v2.1; if it isn't there yet, carry on without it and prompt for the update.
     const ri = kinds.indexOf('routines');
     routinesMissing = !!results[ri].error;
     if (routinesMissing) results[ri] = { data: [], error: null };
+    // Same for the scheduled_rounds table added in v2.5.
+    const si = kinds.indexOf('scheduled');
+    scheduledMissing = !!results[si].error;
+    if (scheduledMissing) results[si] = { data: [], error: null };
     const failed = results.find((res) => res.error);
     if (failed) throw failed.error;
     const next = emptyState();
@@ -153,7 +161,7 @@
   }
   async function dbDeleteAll() {
     for (const k of Object.keys(TABLES)) {
-      if (k === 'routines' && routinesMissing) continue;
+      if (tableMissing(k)) continue;
       const { error } = await sb.from(TABLES[k]).delete().not('id', 'is', null);
       if (error) throw error;
     }
@@ -173,11 +181,12 @@
     practice: (a, b) => a.date === b.date && a.area === b.area && a.minutes === b.minutes && (a.focus || '') === (b.focus || ''),
     workouts: (a, b) => a.date === b.date && a.type === b.type && a.minutes === b.minutes,
     routines: (a, b) => a.kind === b.kind && a.name === b.name,
+    scheduled: (a, b) => a.date === b.date && a.course.toLowerCase() === b.course.toLowerCase() && (a.teeTime || '') === (b.teeTime || ''),
   };
   async function mergeIn(data) {
     let added = 0;
     for (const k of Object.keys(TABLES)) {
-      if (k === 'routines' && routinesMissing) continue;
+      if (tableMissing(k)) continue;
       // Links to routines can't be carried across accounts or restores, so they're dropped here.
       const incoming = (data[k] || []).filter((x) => !x.example).map((x) => ({ ...x, routineId: null }));
       const fresh = incoming.filter((x, i) => !state[k].some((y) => sameEntry[k](x, y)) && incoming.findIndex((y) => sameEntry[k](x, y)) === i);
@@ -217,11 +226,11 @@
   }
 
   // ---------- Navigation ----------
-  const VIEWS = ['analytics', 'calendar', 'rounds', 'practice', 'workouts'];
+  const VIEWS = ['calendar', 'analytics', 'rounds', 'practice', 'workouts'];
   function currentView() {
     const h = location.hash.slice(1);
     if (h === 'dashboard') return 'analytics'; // the Analytics page used to be called Dashboard; old links still work
-    return VIEWS.includes(h) ? h : 'analytics';
+    return VIEWS.includes(h) ? h : 'calendar';
   }
   function showView() {
     const v = currentView();
@@ -339,14 +348,25 @@
     const doneIds = new Set([...e.practice, ...e.workouts].map((x) => x.routineId).filter(Boolean));
     return state.routines.filter((r) => r.day === day && !doneIds.has(r.id)).sort((a, b) => a.sort - b.sort);
   }
-  // Booked trip rounds (trip-rounds.js) still ahead. A logged round on the same date that matches the
-  // course (or, failing that, any leftover logged round that day) takes the place of the earliest unmatched one.
-  function calTrip(iso) {
-    if (iso < todayISO()) return [];
-    const booked = (window.TRIP_ROUNDS || []).filter((t) => t.date === iso);
-    if (!booked.length) return [];
-    const teeMins = (s) => { const m = /(\d+):(\d+)\s*(AM|PM)/i.exec(s || ''); return m ? ((+m[1] % 12) + (m[3].toUpperCase() === 'PM' ? 12 : 0)) * 60 + +m[2] : 0; };
-    const left = booked.slice().sort((a, b) => teeMins(a.tee) - teeMins(b.tee));
+  // Rounds still to play on a day: booked trip rounds (trip-rounds.js, today and later) plus rounds you scheduled
+  // yourself (until you start them, remove them, or log a round at that course). A logged round on the same date
+  // that matches the course (or, failing that, any leftover logged round that day) takes the place of the earliest unmatched one.
+  const teeMins = (s) => {
+    const t = String(s || '').trim();
+    let m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(t);
+    if (m) return ((+m[1] % 12) + (m[3].toUpperCase() === 'PM' ? 12 : 0)) * 60 + +m[2];
+    m = /^(\d{1,2}):(\d{2})$/.exec(t);
+    return m ? +m[1] * 60 + +m[2] : 24 * 60; // no tee time sorts last
+  };
+  const teeLabel = (s) => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || '').trim());
+    return m ? `${+m[1] % 12 || 12}:${m[2]} ${+m[1] < 12 ? 'AM' : 'PM'}` : String(s || '');
+  };
+  function calBooked(iso) {
+    const trip = iso < todayISO() ? [] : (window.TRIP_ROUNDS || []).filter((t) => t.date === iso).map((t) => ({ ...t, src: 'trip' }));
+    const mine = (state.scheduled || []).filter((x) => x.date === iso).map((x) => ({ ...x, src: 'sched', match: [x.course.toLowerCase()] }));
+    const left = [...trip, ...mine].sort((a, b) => teeMins(a.tee || a.teeTime) - teeMins(b.tee || b.teeTime));
+    if (!left.length) return [];
     const played = calEntries(iso).rounds.slice();
     for (let i = played.length - 1; i >= 0; i--) {
       const name = String(played[i].course || '').toLowerCase().replace(/[‘’]/g, "'");
@@ -356,6 +376,7 @@
     return left.slice(Math.min(played.length, left.length));
   }
   const tripInfo = (t) => [t.par ? `Par ${t.par}` : '', t.yards ? `${t.yards.toLocaleString()} yd` : '', t.rating && t.slope ? `${t.rating}/${t.slope}` : ''].filter(Boolean).join(' · ');
+  const schedInfo = (x) => [x.tees ? `${x.tees} tees` : '', `${x.holeCount || 18} holes`].filter(Boolean).join(' · ');
   function renderCalendar() {
     if (!calMonth) { const n = new Date(); calMonth = new Date(n.getFullYear(), n.getMonth(), 1); calSelected = todayISO(); }
     const y = calMonth.getFullYear(), m = calMonth.getMonth();
@@ -371,29 +392,83 @@
       const inMonth = d.getMonth() === m;
       const e = calEntries(iso);
       const planned = calPlanned(iso).length;
-      const trip = calTrip(iso).length;
+      const trip = calBooked(iso).length;
       const dots = (e.rounds.length ? '<i class="cal-dot round"></i>' : '') + (trip ? '<i class="cal-dot planned-round"></i>' : '') + (e.practice.length ? '<i class="cal-dot practice"></i>' : '')
         + (e.workouts.length ? '<i class="cal-dot workout"></i>' : '') + (planned ? '<i class="cal-dot planned"></i>' : '');
-      const label = `${d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}${e.rounds.length ? ', round played' : ''}${trip ? `, ${trip} round${trip === 1 ? '' : 's'} booked` : ''}${e.practice.length ? ', practice' : ''}${e.workouts.length ? ', workout' : ''}${planned ? ', planned session' : ''}`;
+      const label = `${d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}${e.rounds.length ? ', round played' : ''}${trip ? `, ${trip} round${trip === 1 ? '' : 's'} scheduled` : ''}${e.practice.length ? ', practice' : ''}${e.workouts.length ? ', workout' : ''}${planned ? ', planned session' : ''}`;
       html += `<button type="button" role="gridcell" class="cal-day${inMonth ? '' : ' out'}${iso === today ? ' today' : ''}${iso === calSelected ? ' selected' : ''}" data-date="${iso}" aria-label="${esc(label)}"${iso === calSelected ? ' aria-selected="true"' : ''}><span class="n num">${d.getDate()}</span><span class="dots">${dots}</span></button>`;
     }
     $('#cal-grid').innerHTML = html + '</div>';
     renderCalendarDetail();
   }
+  let calStartable = []; // booked/scheduled rounds listed for the open day; the Start and Remove buttons point into this
   function renderCalendarDetail() {
-    if (!calSelected) { $('#cal-detail').innerHTML = ''; return; }
+    if (!calSelected) { $('#cal-detail').innerHTML = ''; calStartable = []; updateCalendarActions(); return; }
     const e = calEntries(calSelected);
+    calStartable = calBooked(calSelected);
     const rows = [
       ...e.rounds.map((r) => { const s = roundStats(r); return `<li><span class="chip">Round</span><span>${esc(r.course)} · ${s.score}${toParNote(s)}</span></li>`; }),
       ...e.practice.map((p) => `<li><span class="chip sand">Practice</span><span>${esc(routineName(p.routineId) || p.area)} · ${p.minutes} min</span></li>`),
       ...e.workouts.map((w) => `<li><span class="chip plain">Workout</span><span>${esc(routineName(w.routineId) || w.type)} · ${w.minutes} min</span></li>`),
-      ...calTrip(calSelected).map((t) => `<li class="planned"><span class="chip">Booked</span><span>${esc(t.tee)} · ${esc(t.course)}${tripInfo(t) ? `<small class="trip-info">${esc(tripInfo(t))}</small>` : ''}${t.note ? `<small class="trip-info">${esc(t.note)}</small>` : ''}</span></li>`),
+      ...calStartable.map((t, i) => {
+        const when = teeLabel(t.tee || t.teeTime);
+        const info = t.src === 'trip' ? tripInfo(t) : schedInfo(t);
+        return `<li class="planned has-btns"><span class="chip">${t.src === 'trip' ? 'Booked' : 'Scheduled'}</span><span>${when ? `${esc(when)} · ` : ''}${esc(t.course)}${info ? `<small class="trip-info">${esc(info)}</small>` : ''}${t.note ? `<small class="trip-info">${esc(t.note)}</small>` : ''}</span><span class="row-btns"><button type="button" class="btn small primary" data-start="${i}">Start round</button>${t.src === 'sched' ? `<button type="button" class="btn small ghost" data-remove="${i}">Remove</button>` : ''}</span></li>`;
+      }),
       ...calPlanned(calSelected).map((r) => `<li class="planned"><span class="chip ${r.kind === 'practice' ? 'sand' : 'plain'}">Planned</span><span>${esc(r.name)}</span></li>`),
     ];
     const rel = daysSince(calSelected) === 0 ? ' · Today' : '';
     $('#cal-detail').innerHTML = `<h3>${esc(fmtDate(calSelected, true))}${rel}</h3>`
       + (rows.length ? `<ul class="feed">${rows.join('')}</ul>` : '<p class="empty">Nothing logged or planned.</p>');
+    updateCalendarActions();
   }
+  function updateCalendarActions() {
+    const canAdd = !!calSelected && calSelected >= todayISO();
+    $('#cal-add').hidden = !canAdd || scheduledMissing || !$('#sched-form').hidden;
+    $('#cal-sched-note').hidden = !(canAdd && scheduledMissing);
+    if (calSelected) $('#sched-title').textContent = `Schedule a round · ${fmtDate(calSelected, true)}`;
+    if (!canAdd) $('#sched-form').hidden = true;
+  }
+  $('#cal-add').addEventListener('click', () => {
+    $('#sched-form').reset();
+    $('#sched-form').hidden = false;
+    updateCalendarActions();
+    $('#s-course').focus();
+  });
+  $('#sched-cancel').addEventListener('click', () => { $('#sched-form').hidden = true; updateCalendarActions(); });
+  $('#sched-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const course = $('#s-course').value.trim();
+    if (!course) { toast('Add the course name'); $('#s-course').focus(); return; }
+    if (!calSelected) return;
+    const item = { date: calSelected, teeTime: $('#s-time').value, course, tees: $('#s-tees').value.trim(), holeCount: parseInt($('input[name="s-holes"]:checked').value, 10) };
+    if (await busy(e.submitter, () => dbInsert('scheduled', [item]))) { $('#sched-form').hidden = true; updateCalendarActions(); toast(`Scheduled ${course} for ${fmtDate(item.date)}`); }
+  });
+  // Starting a booked or scheduled round opens the Rounds page with a new round already filled in.
+  function startRound(t) {
+    location.hash = '#rounds';
+    showView();
+    openForm('round-form', false);
+    const holes = t.holeCount === 9 ? 9 : 18;
+    $('#r-title').textContent = `Round: ${t.course}`;
+    $('#r-date').value = t.date;
+    $('#r-course').value = t.course;
+    $('#r-tees').value = t.tees || '';
+    $(`#r-holes-${holes}`).checked = true;
+    buildHoleRows(holes);
+    roundFrom = t.src === 'sched' ? t.id : null;
+    prefillParsForCourse();
+    $('#round-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  $('#cal-detail').addEventListener('click', (ev) => {
+    const start = ev.target.closest('[data-start]');
+    if (start) { const t = calStartable[+start.dataset.start]; if (t) startRound(t); return; }
+    const rm = ev.target.closest('[data-remove]');
+    if (rm) {
+      const t = calStartable[+rm.dataset.remove];
+      if (t) armOrRun(rm, 'Tap again to remove', async () => { if (await busy(rm, () => dbDelete('scheduled', t.id))) toast('Removed from your schedule'); });
+    }
+  });
   function calGo(delta) {
     calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + delta, 1);
     calSelected = null;
@@ -528,7 +603,10 @@
     $('#r-total-fields').hidden = !total;
     $('#r-hole-fields').hidden = total;
   }
+  let roundFrom = null; // id of the scheduled round this new round was started from (cleared once the round is saved)
   function resetRoundForm() {
+    roundFrom = null;
+    $('#r-title').textContent = 'New round';
     $('#round-form').reset();
     $('#r-date').value = todayISO();
     buildHoleRows(18);
@@ -560,6 +638,14 @@
     const pars = readHoles().map((h) => h.par);
     buildHoleRows(parseInt(radio.value, 10), pars);
   }));
+  // Saves a round; if it was started from a scheduled round, that schedule entry is removed.
+  async function saveRound(r) {
+    await dbInsert('rounds', [r]);
+    if (roundFrom) {
+      const id = roundFrom; roundFrom = null;
+      try { await dbDelete('scheduled', id); } catch (err) { console.error(err); /* the round is saved; a matching round already hides the entry */ }
+    }
+  }
   $('#round-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = e.submitter || $('#round-form button[type=submit]');
@@ -575,7 +661,7 @@
       const r = { id: uid(), date: $('#r-date').value || todayISO(), course, tees: $('#r-tees').value.trim(), holeCount: count, total, notes: $('#r-notes').value.trim() };
       if (par) r.par = par;
       if (!isNaN(diff)) r.differential = diff;
-      if (await busy(btn, () => dbInsert('rounds', [r]))) { closeForm('round-form'); toast(`Round saved: ${total}${toParNote(roundStats(r))}`); }
+      if (await busy(btn, () => saveRound(r))) { closeForm('round-form'); toast(`Round saved: ${total}${toParNote(roundStats(r))}`); }
       return;
     }
     const holes = readHoles();
@@ -588,7 +674,7 @@
     }
     const r = { id: uid(), date: $('#r-date').value || todayISO(), course, tees: $('#r-tees').value.trim(), holes, notes: $('#r-notes').value.trim() };
     const s = roundStats(r);
-    if (await busy(btn, () => dbInsert('rounds', [r]))) { closeForm('round-form'); toast(`Round saved: ${s.score}${toParNote(s)}`); }
+    if (await busy(btn, () => saveRound(r))) { closeForm('round-form'); toast(`Round saved: ${s.score}${toParNote(s)}`); }
   });
 
   // ---------- GHIN import ----------

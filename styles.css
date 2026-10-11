@@ -311,3 +311,9 @@ label.inline input { width: 5rem; text-align: center; }
 .cal-detail h3 { margin: 0; font-family: var(--display); font-size: 1.1rem; text-transform: uppercase; letter-spacing: .03em; }
 .cal-detail .planned { color: var(--muted); }
 @media (max-width: 520px) { .cal-day { min-height: 46px; } .cal-month { min-width: 0; } }
+.row-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.cal-panel .row-actions { margin-top: 2px; }
+.sched-form { display: grid; gap: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+.sched-form h3 { margin: 0; font-family: var(--display); font-size: 1.1rem; text-transform: uppercase; letter-spacing: .03em; }
+.feed li.has-btns { grid-template-columns: auto 1fr; }
+.feed li.has-btns .row-btns { grid-column: 1 / -1; justify-content: flex-start; }
