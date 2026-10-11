@@ -6,7 +6,7 @@ A personal golf app for tracking the three things that make a better golfer:
 - **Practice**: range and short-game sessions by area, with minutes, balls hit, the drill, and how it went.
 - **Workouts**: golf fitness sessions with exercises, sets, reps, and load.
 - **Analytics**: scoring average, putts per round, GIR %, fairways %, a scoring trend chart, practice minutes by area, this week's plan, and recent activity.
-- **Calendar**: a month view of rounds, practice and workouts, with booked trip rounds and your weekly plan on upcoming days.
+- **Calendar** (the first tab): a month view of rounds, practice and workouts, with scheduled rounds and your weekly plan on upcoming days. Schedule a round from any day, then tap **Start round** to open it ready to score.
 
 ## How it works
 
@@ -50,6 +50,13 @@ Use the live version at https://awesome-bill.github.io/NutzSwings/. To try chang
 - **v2.2**: Calendar on the dashboard: a month view with dots for rounds, practice and workouts, your weekly plan shown on upcoming days, and a details list when you tap a day.
 - **v2.3**: Booked trip rounds on the calendar. `trip-rounds.js` lists upcoming rounds (date, course, tee time, course details); they show as hollow green dots, and tapping a day lists the course and tee time. Logging a round at that course on that date replaces the booked entry. First trip: Myrtle Beach, Oct 14 to 17, 2026.
 - **v2.4**: The calendar moves out of the dashboard into its own **Calendar** tab, and the Dashboard tab is now **Analytics**. Old `#dashboard` links still open Analytics. No database change.
+- **v2.5**: Calendar is the first tab and the page the app opens on. **Schedule a round** on any day from today on (course, optional tee time, tees, 9 or 18 holes). **Start round** on a scheduled or booked round opens the Rounds form with the date, course, tees and holes filled in; saving it removes the scheduled entry. Needs `supabase/setup.sql` re-run once (adds `scheduled_rounds`).
+
+## Scheduling rounds
+
+Open the **Calendar**, tap a day (today or later), and tap **Schedule a round**. Each scheduled round shows on its day with **Start round** and **Remove**. **Start round** takes you to the Rounds page with a new round ready: date, course, tees and 9 or 18 holes are filled in (and pars too, if you've played that course hole by hole before). When you save the round, the scheduled entry goes away. Scheduled rounds that were never played stay on their day until you start or remove them. Booked trip rounds from `trip-rounds.js` have **Start round** too.
+
+**Updating from v2.4:** run the whole of `supabase/setup.sql` again in the Supabase SQL Editor. It only adds the new `scheduled_rounds` table. Until you do, the Calendar still works but the Schedule button is replaced by a reminder.
 
 ## Trip rounds
 
