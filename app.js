@@ -336,6 +336,23 @@
     const doneIds = new Set([...e.practice, ...e.workouts].map((x) => x.routineId).filter(Boolean));
     return state.routines.filter((r) => r.day === day && !doneIds.has(r.id)).sort((a, b) => a.sort - b.sort);
   }
+  // Booked trip rounds (trip-rounds.js) still ahead. A logged round on the same date that matches the
+  // course (or, failing that, any leftover logged round that day) takes the place of the earliest unmatched one.
+  function calTrip(iso) {
+    if (iso < todayISO()) return [];
+    const booked = (window.TRIP_ROUNDS || []).filter((t) => t.date === iso);
+    if (!booked.length) return [];
+    const teeMins = (s) => { const m = /(\d+):(\d+)\s*(AM|PM)/i.exec(s || ''); return m ? ((+m[1] % 12) + (m[3].toUpperCase() === 'PM' ? 12 : 0)) * 60 + +m[2] : 0; };
+    const left = booked.slice().sort((a, b) => teeMins(a.tee) - teeMins(b.tee));
+    const played = calEntries(iso).rounds.slice();
+    for (let i = played.length - 1; i >= 0; i--) {
+      const name = String(played[i].course || '').toLowerCase().replace(/[‘’]/g, "'");
+      const k = left.findIndex((t) => (t.match || [t.course.toLowerCase()]).some((w) => name.includes(w)));
+      if (k >= 0) { left.splice(k, 1); played.splice(i, 1); }
+    }
+    return left.slice(Math.min(played.length, left.length));
+  }
+  const tripInfo = (t) => [t.par ? `Par ${t.par}` : '', t.yards ? `${t.yards.toLocaleString()} yd` : '', t.rating && t.slope ? `${t.rating}/${t.slope}` : ''].filter(Boolean).join(' · ');
   function renderCalendar() {
     if (!calMonth) { const n = new Date(); calMonth = new Date(n.getFullYear(), n.getMonth(), 1); calSelected = todayISO(); }
     const y = calMonth.getFullYear(), m = calMonth.getMonth();
@@ -351,9 +368,10 @@
       const inMonth = d.getMonth() === m;
       const e = calEntries(iso);
       const planned = calPlanned(iso).length;
-      const dots = (e.rounds.length ? '<i class="cal-dot round"></i>' : '') + (e.practice.length ? '<i class="cal-dot practice"></i>' : '')
+      const trip = calTrip(iso).length;
+      const dots = (e.rounds.length ? '<i class="cal-dot round"></i>' : '') + (trip ? '<i class="cal-dot planned-round"></i>' : '') + (e.practice.length ? '<i class="cal-dot practice"></i>' : '')
         + (e.workouts.length ? '<i class="cal-dot workout"></i>' : '') + (planned ? '<i class="cal-dot planned"></i>' : '');
-      const label = `${d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}${e.rounds.length ? ', round played' : ''}${e.practice.length ? ', practice' : ''}${e.workouts.length ? ', workout' : ''}${planned ? ', planned session' : ''}`;
+      const label = `${d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}${e.rounds.length ? ', round played' : ''}${trip ? `, ${trip} round${trip === 1 ? '' : 's'} booked` : ''}${e.practice.length ? ', practice' : ''}${e.workouts.length ? ', workout' : ''}${planned ? ', planned session' : ''}`;
       html += `<button type="button" role="gridcell" class="cal-day${inMonth ? '' : ' out'}${iso === today ? ' today' : ''}${iso === calSelected ? ' selected' : ''}" data-date="${iso}" aria-label="${esc(label)}"${iso === calSelected ? ' aria-selected="true"' : ''}><span class="n num">${d.getDate()}</span><span class="dots">${dots}</span></button>`;
     }
     $('#cal-grid').innerHTML = html + '</div>';
@@ -366,6 +384,7 @@
       ...e.rounds.map((r) => { const s = roundStats(r); return `<li><span class="chip">Round</span><span>${esc(r.course)} · ${s.score}${toParNote(s)}</span></li>`; }),
       ...e.practice.map((p) => `<li><span class="chip sand">Practice</span><span>${esc(routineName(p.routineId) || p.area)} · ${p.minutes} min</span></li>`),
       ...e.workouts.map((w) => `<li><span class="chip plain">Workout</span><span>${esc(routineName(w.routineId) || w.type)} · ${w.minutes} min</span></li>`),
+      ...calTrip(calSelected).map((t) => `<li class="planned"><span class="chip">Booked</span><span>${esc(t.tee)} · ${esc(t.course)}${tripInfo(t) ? `<small class="trip-info">${esc(tripInfo(t))}</small>` : ''}${t.note ? `<small class="trip-info">${esc(t.note)}</small>` : ''}</span></li>`),
       ...calPlanned(calSelected).map((r) => `<li class="planned"><span class="chip ${r.kind === 'practice' ? 'sand' : 'plain'}">Planned</span><span>${esc(r.name)}</span></li>`),
     ];
     const rel = daysSince(calSelected) === 0 ? ' · Today' : '';

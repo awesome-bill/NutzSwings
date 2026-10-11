@@ -36,7 +36,7 @@ Use the live version at https://awesome-bill.github.io/NutzSwings/. To try chang
 
 ## Releasing a change
 
-`index.html` loads `styles.css`, `config.js` and `app.js` with a version on the end (for example `app.js?v=2.0.1`). When any of those files change, bump that number in all three places. Browsers then download the new files instead of reusing old copies, which can otherwise mix old and new code and leave a blank page.
+`index.html` loads `styles.css`, `config.js`, `starter-routines.js`, `trip-rounds.js` and `app.js` with a version on the end (for example `app.js?v=2.0.1`). When any of those files change, bump that number in all three places. Browsers then download the new files instead of reusing old copies, which can otherwise mix old and new code and leave a blank page.
 
 ## Changelog
 
@@ -47,6 +47,11 @@ Use the live version at https://awesome-bill.github.io/NutzSwings/. To try chang
 - **v2.0.1**: Versioned file links so browsers always load matching files after an update.
 - **v2.1**: Practice and workout routines with a starter weekly plan, scored drills with last/best/target, last-used weights in workouts, routine editor, and a This week plan on the dashboard.
 - **v2.2**: Calendar on the dashboard: a month view with dots for rounds, practice and workouts, your weekly plan shown on upcoming days, and a details list when you tap a day.
+- **v2.3**: Booked trip rounds on the dashboard calendar. `trip-rounds.js` lists upcoming rounds (date, course, tee time, course details); they show as hollow green dots, and tapping a day lists the course and tee time. Logging a round at that course on that date replaces the booked entry. First trip: Myrtle Beach, Oct 14 to 17, 2026.
+
+## Trip rounds
+
+Upcoming booked rounds live in `trip-rounds.js` (no database change). Each entry has a date, tee time, course name, and a `match` list of words used to recognize the course when you log or import the round. Edit the file on github.com to add a trip, then bump the `?v=` number. Confirmation numbers and prices are kept out of it because the repo is public.
 
 ## Routines
 
