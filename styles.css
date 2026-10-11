@@ -304,6 +304,8 @@ label.inline input { width: 5rem; text-align: center; }
 .cal-dot.practice { background: var(--sand); }
 .cal-dot.workout { background: var(--muted); }
 .cal-dot.planned { background: transparent; border: 1.5px solid var(--muted); }
+.cal-dot.planned-round { background: transparent; border: 1.5px solid var(--green); }
+.trip-info { display: block; color: var(--muted); font-size: .82rem; }
 .cal-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: .82rem; color: var(--muted); }
 .cal-detail { display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 12px; }
 .cal-detail h3 { margin: 0; font-family: var(--display); font-size: 1.1rem; text-transform: uppercase; letter-spacing: .03em; }
