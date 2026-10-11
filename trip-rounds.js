@@ -1,5 +1,5 @@
 /* Fairway Notebook: upcoming trip rounds.
-   Booked rounds that show on the dashboard calendar as hollow green dots ("planned round").
+   Booked rounds that show on the Calendar page as hollow green dots ("planned round").
    Tap a day to see the course and tee time. Once you log a round on that date at that course,
    the planned entry drops off and your real round takes its place.
 
