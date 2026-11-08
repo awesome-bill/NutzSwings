@@ -1,21 +1,24 @@
 /* Fairway Notebook: starter routines.
    Loaded into your account the first time you tap "Load starter routines". After that they live in
    your database, and you change them in the app (Edit on any routine). Editing this file only
-   changes what a fresh account starts with.
+   changes what a fresh account starts with, and routines you already have with the same name are skipped.
 
-   Weekly rhythm: 3 practice sessions + 3 workouts.
+   Weekly rhythm: 3 practice sessions + 3 workouts + 2 runs.
      Mon  Workout A: Strength (lower body + pull)
-     Tue  Practice 1: Short game + putting
+     Tue  Practice 1: Short game + putting, plus Run 2: Intervals
      Wed  Workout B: Speed & power
      Thu  Practice 2: Driver + putting
      Fri  Workout C: Strength (upper body + rotation)
      Sat  Practice 3: Scoring games (or play a round)
+     Sun  Run 1: Easy run
+
+   Workouts are written for the home gym: rack and bench, barbell and plates (315 lb), trap bar, landmine,
+   dumbbells to 90 lb, pull-up bar, dip station, med balls. No cable machine.
 
    Practice drills have a score so you can see them improve:
      score 'made'    → result is how many out of `outOf` (higher is better), `target` is the goal
      score 'strokes' → result is strokes taken (lower is better), `target` is the goal
-     score 'none'    → just tick it off
-   Cable exercises only use the overhead (high) pulley. */
+     score 'none'    → just tick it off */
 window.STARTER_ROUTINES = [
   // ---------------- Practice ----------------
   {
@@ -74,44 +77,61 @@ window.STARTER_ROUTINES = [
   // ---------------- Workouts ----------------
   {
     kind: 'workout', sort: 1, day: 'Mon', name: 'A: Strength (lower + pull)', focus: 'Strength',
-    notes: 'Leave 1–2 reps in the tank on every set. Add a little weight when all sets feel solid.',
+    notes: 'Leave 1–2 reps in the tank on every set. Add a little weight when all sets feel solid. Trap bar tops out at 315 lb; after that slow the lowering or add a pause.',
     items: [
       { name: '90/90 hip switch', sets: 2, reps: '8', load: 'Warm-up' },
       { name: 'Open books', sets: 2, reps: '8/side', load: 'Warm-up' },
       { name: 'Trap bar deadlift', sets: 4, reps: '5', load: '' },
-      { name: 'Rear-foot elevated split squat', sets: 3, reps: '8/side', load: '' },
-      { name: 'Lat pulldown (high cable)', sets: 3, reps: '10', load: '' },
-      { name: 'Single-arm row', sets: 3, reps: '10/side', load: '' },
-      { name: 'Half-kneeling high-to-low cable chop', sets: 3, reps: '10/side', load: '' },
-      { name: 'Farmer carry', sets: 3, reps: '40 yd', load: '' },
+      { name: 'Rear-foot elevated split squat (dumbbells)', sets: 3, reps: '8/side', load: '' },
+      { name: 'Pull-ups', sets: 3, reps: '6–8', load: 'Bodyweight' },
+      { name: 'Single-arm dumbbell row (bench)', sets: 3, reps: '10/side', load: '' },
+      { name: 'Half-kneeling landmine press', sets: 3, reps: '8/side', load: '' },
+      { name: 'Farmer carry', sets: 3, reps: '30 s', load: '' },
     ],
   },
   {
     kind: 'workout', sort: 2, day: 'Wed', name: 'B: Speed & power', focus: 'Speed',
-    notes: 'Every rep at full intent, full rest between sets (60–90 s). Stop when speed drops.',
+    notes: 'Every rep at full intent, full rest between sets (60–90 s). Stop when speed drops. Throw med balls into the back wall.',
     items: [
       { name: "World's greatest stretch", sets: 2, reps: '5/side', load: 'Warm-up' },
       { name: 'Thoracic rotation', sets: 2, reps: '8/side', load: 'Warm-up' },
-      { name: 'Med ball rotational throw', sets: 4, reps: '5/side', load: '' },
+      { name: 'Med ball rotational throw (into wall)', sets: 4, reps: '5/side', load: '' },
       { name: 'Med ball slam', sets: 3, reps: '6', load: '' },
       { name: 'Countermovement jump', sets: 3, reps: '5', load: 'Bodyweight' },
-      { name: 'Lateral bound', sets: 3, reps: '5/side', load: 'Bodyweight' },
+      { name: 'Skater hop', sets: 3, reps: '5/side', load: 'Bodyweight' },
       { name: 'Overspeed swings', sets: 3, reps: '5 each side', load: 'Light / normal' },
       { name: 'Dead bug', sets: 2, reps: '8/side', load: '' },
     ],
   },
   {
     kind: 'workout', sort: 3, day: 'Fri', name: 'C: Strength (upper + rotation)', focus: 'Strength',
-    notes: 'Control the lowering on every rep. Rotation work is smooth, not max effort.',
+    notes: 'Control the lowering on every rep. Rotation work is smooth, not max effort. Dips are optional.',
     items: [
       { name: 'Thread the needle', sets: 2, reps: '6/side', load: 'Warm-up' },
       { name: 'Deep squat hold', sets: 2, reps: '30 s', load: 'Warm-up' },
       { name: 'Goblet squat', sets: 3, reps: '8', load: '' },
-      { name: 'Dumbbell bench press', sets: 3, reps: '8', load: '' },
+      { name: 'Barbell bench press (in rack)', sets: 3, reps: '8', load: '' },
       { name: 'Romanian deadlift', sets: 3, reps: '8', load: '' },
-      { name: 'Face pull (high cable)', sets: 3, reps: '12', load: '' },
+      { name: 'Chest-supported rear-delt fly (incline bench)', sets: 3, reps: '12', load: '' },
       { name: 'Landmine rotation', sets: 3, reps: '8/side', load: '' },
+      { name: 'Dips (optional)', sets: 3, reps: '8', load: 'Bodyweight' },
       { name: 'Side plank', sets: 3, reps: '30 s/side', load: '' },
+    ],
+  },
+  {
+    kind: 'workout', sort: 4, day: 'Sun', name: 'Run 1: Easy run', focus: 'Conditioning',
+    notes: 'Easy means you can talk in full sentences. Build over 6 weeks: 20, 25, 30, 25 (lighter), 35, 40 minutes. Add no more than about 10 minutes a week. If anything lingers past a day, repeat the week.',
+    items: [
+      { name: 'Easy run (minutes)', sets: 1, reps: '20 min', load: 'Easy pace' },
+    ],
+  },
+  {
+    kind: 'workout', sort: 5, day: 'Tue', name: 'Run 2: Intervals', focus: 'Conditioning',
+    notes: 'Warm up 8–10 min easy, do the reps, cool down 5–10 min easy. Hard = about 5K effort, controlled. Weeks: 1) 15 min easy + 4 × 20 s strides; 2) 6 × 1 min / 1 min jog; 3) 6 × 1.5 min / 1.5 min jog; 4) 4 × 1 min / 1 min jog; 5) 5 × 2 min / 2 min jog; 6) 6 × 2 min / 2 min jog. Follows Monday lower body: if legs are heavy, run easy instead.',
+    items: [
+      { name: 'Easy warm-up run', sets: 1, reps: '8–10 min', load: 'Easy pace' },
+      { name: 'Hard reps (see weeks in notes)', sets: 6, reps: '1 min', load: '5K effort, jog recovery' },
+      { name: 'Easy cool-down run', sets: 1, reps: '5–10 min', load: 'Easy pace' },
     ],
   },
 ];

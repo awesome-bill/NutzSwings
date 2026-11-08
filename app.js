@@ -939,7 +939,7 @@
     const starters = (window.STARTER_ROUTINES || []).filter((s) => !state.routines.some((r) => r.kind === s.kind && r.name === s.name))
       .map((s) => ({ kind: s.kind, name: s.name, day: s.day || '', type: s.focus || '', sort: s.sort || 0, notes: s.notes || '', items: s.items }));
     if (!starters.length) { toast('Starter routines are already loaded'); return; }
-    if (await busy(btn, () => dbInsert('routines', starters))) toast(`Added ${starters.length} routines: 3 practice sessions and 3 workouts`);
+    if (await busy(btn, () => dbInsert('routines', starters))) toast(`Added ${starters.length} routine${starters.length === 1 ? '' : 's'}`);
   }
 
   // Running a practice routine
