@@ -214,13 +214,15 @@ legend { font-size: .85rem; font-weight: 600; color: var(--muted); padding: 0; m
 .gir-yes { color: var(--green); font-weight: 700; }
 .gir-no { color: var(--muted); }
 
-.ex-head, .ex-row { display: grid; grid-template-columns: minmax(0, 1fr) 3.6rem 3.6rem 5.5rem 2rem; gap: 6px; align-items: center; }
+.ex-head, .ex-row { display: grid; grid-template-columns: minmax(0, 1fr) 3.6rem 3.6rem 5.5rem 1.8rem 1.8rem; gap: 6px; align-items: center; }
 .ex-head { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
 .ex-rows { display: grid; gap: 6px; }
 .ex-row input { padding: 7px 8px; }
+.ex-row .lookup { background: none; border: 1px solid var(--line, #ccc); border-radius: 50%; color: var(--muted); font-size: .8rem; font-weight: 700; width: 1.5rem; height: 1.5rem; padding: 0; cursor: pointer; line-height: 1; }
+.lookup-link { display: inline-block; margin-left: 4px; font-size: .75rem; font-weight: 700; color: var(--muted); text-decoration: none; border: 1px solid currentColor; border-radius: 50%; width: 1.2rem; height: 1.2rem; line-height: 1.1rem; text-align: center; }
 .ex-row .remove { background: none; border: 0; color: var(--muted); font-size: 1.3rem; cursor: pointer; line-height: 1; }
 @media (max-width: 420px) {
-  .ex-head, .ex-row { grid-template-columns: minmax(0, 1fr) 3rem 3rem 4.2rem 1.6rem; gap: 4px; }
+  .ex-head, .ex-row { grid-template-columns: minmax(0, 1fr) 3rem 3rem 4.2rem 1.5rem 1.5rem; gap: 4px; }
 }
 
 /* ---------- Toast ---------- */

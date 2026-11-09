@@ -825,6 +825,8 @@
   // ---------- Workouts ----------
   $('#w-type').innerHTML = WORKOUT_TYPES.map((t) => `<option>${t}</option>`).join('');
   $('#exercise-list').innerHTML = EXERCISES.map((x) => `<option value="${esc(x)}"></option>`).join('');
+  // Look up an exercise you don't know: opens a YouTube search for how to do it.
+  const howToUrl = (name) => `https://www.youtube.com/results?search_query=${encodeURIComponent(`${name} exercise how to`)}`;
   let exCounter = 0;
   function addExerciseRow() {
     const n = exCounter++;
@@ -834,7 +836,13 @@
       <input type="number" id="ex-sets-${n}" min="1" max="20" inputmode="numeric" placeholder="3" aria-label="Sets">
       <input type="text" id="ex-reps-${n}" placeholder="8" aria-label="Reps">
       <input type="text" id="ex-load-${n}" placeholder="50 lb" aria-label="Load">
+      <button type="button" class="lookup" aria-label="How to do this exercise" title="How to do this exercise">?</button>
       <button type="button" class="remove" aria-label="Remove exercise">×</button>`;
+    row.querySelector('.lookup').addEventListener('click', () => {
+      const name = row.querySelector('input').value.trim();
+      if (!name) { toast('Type an exercise name first'); return; }
+      window.open(howToUrl(name), '_blank', 'noopener');
+    });
     row.querySelector('.remove').addEventListener('click', () => row.remove());
     $('#w-exercises').appendChild(row);
     return row;
@@ -851,7 +859,7 @@
     $('#workout-list').innerHTML = list.length ? list.map((w) => `<article class="item" data-id="${w.id}">
         <div class="item-top"><div><div class="item-title">${esc(w.type)}${w.example ? ' <span class="chip plain">Example</span>' : ''}</div>
           <div class="item-meta num"><span>${fmtDate(w.date, true)}</span><span>${w.minutes} min</span><span>${w.exercises.length} exercise${w.exercises.length === 1 ? '' : 's'}</span>${routineName(w.routineId) ? `<span>${esc(routineName(w.routineId))}</span>` : ''}</div></div></div>
-        ${w.exercises.length ? `<ul class="ex-list">${w.exercises.map((x) => `<li>${esc(x.name)}${x.sets ? ` — ${x.sets} × ${esc(x.reps || '?')}` : ''}${x.load ? ` @ ${esc(x.load)}` : ''}</li>`).join('')}</ul>` : ''}
+        ${w.exercises.length ? `<ul class="ex-list">${w.exercises.map((x) => `<li>${esc(x.name)} <a class="lookup-link" href="${howToUrl(x.name)}" target="_blank" rel="noopener" aria-label="How to do ${esc(x.name)}">?</a>${x.sets ? ` — ${x.sets} × ${esc(x.reps || '?')}` : ''}${x.load ? ` @ ${esc(x.load)}` : ''}</li>`).join('')}</ul>` : ''}
         ${w.notes ? `<p class="notes">${esc(w.notes)}</p>` : ''}
         <div class="item-actions"><button type="button" class="link-btn danger" data-act="delete" data-kind="workouts">Delete</button></div>
       </article>`).join('') : '<p class="empty">No workouts yet.</p>';
