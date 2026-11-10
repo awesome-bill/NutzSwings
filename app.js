@@ -8,6 +8,10 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const uid = () => Math.random().toString(36).slice(2, 10);
+  // Lookups open a YouTube search for how to do an exercise or golf drill.
+  const ytUrl = (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+  const howToUrl = (name) => ytUrl(`${name} exercise how to`);
+  const drillUrl = (name) => ytUrl(`${name} golf drill`);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   function isoDaysAgo(n) {
@@ -806,7 +810,7 @@
           <div class="item-meta num"><span>${fmtDate(p.date, true)}</span><span>${p.minutes} min</span>${p.balls ? `<span>${p.balls} balls</span>` : ''}</div></div>
           <span class="stars" aria-label="${RATINGS[p.rating - 1]}">${'●'.repeat(p.rating)}${'○'.repeat(5 - p.rating)}</span></div>
         ${p.focus && !(p.drills && p.drills.length) ? `<div>${esc(p.focus)}</div>` : ''}
-        ${p.drills && p.drills.length ? `<ul class="drill-results">${p.drills.map((d) => `<li><span>${esc(d.name)}</span><span class="num ${hitTarget(d) ? 'hit' : ''}">${fmtResult(d)}</span></li>`).join('')}</ul>` : ''}
+        ${p.drills && p.drills.length ? `<ul class="drill-results">${p.drills.map((d) => `<li><span>${esc(d.name)} <a class="lookup-link" href="${drillUrl(d.name)}" target="_blank" rel="noopener" aria-label="How to do ${esc(d.name)}">?</a></span><span class="num ${hitTarget(d) ? 'hit' : ''}">${fmtResult(d)}</span></li>`).join('')}</ul>` : ''}
         ${p.notes ? `<p class="notes">${esc(p.notes)}</p>` : ''}
         <div class="item-actions"><button type="button" class="link-btn danger" data-act="delete" data-kind="practice">Delete</button></div>
       </article>`).join('') : '<p class="empty">No practice sessions yet.</p>';
@@ -826,7 +830,6 @@
   $('#w-type').innerHTML = WORKOUT_TYPES.map((t) => `<option>${t}</option>`).join('');
   $('#exercise-list').innerHTML = EXERCISES.map((x) => `<option value="${esc(x)}"></option>`).join('');
   // Look up an exercise you don't know: opens a YouTube search for how to do it.
-  const howToUrl = (name) => `https://www.youtube.com/results?search_query=${encodeURIComponent(`${name} exercise how to`)}`;
   let exCounter = 0;
   function addExerciseRow() {
     const n = exCounter++;
@@ -960,7 +963,7 @@
     $('#run-notes-hint').textContent = r.notes || '';
     $('#run-date').value = todayISO();
     $('#run-drills').innerHTML = r.items.map((d, i) => `<div class="drill" data-i="${i}">
-        <div class="drill-top"><label class="drill-done"><input type="checkbox" id="run-done-${i}" checked><span class="drill-name">${esc(d.name)}</span></label><span class="drill-meta">${esc(d.area)} · ${d.minutes} min</span></div>
+        <div class="drill-top"><span class="drill-title"><label class="drill-done"><input type="checkbox" id="run-done-${i}" checked><span class="drill-name">${esc(d.name)}</span></label><a class="lookup-link" href="${drillUrl(d.name)}" target="_blank" rel="noopener" aria-label="How to do ${esc(d.name)}">?</a></span><span class="drill-meta">${esc(d.area)} · ${d.minutes} min</span></div>
         ${d.how ? `<p class="drill-how">${esc(d.how)}</p>` : ''}
         ${d.score === 'none' ? '' : `<div class="drill-score"><label class="inline">${d.score === 'made' ? 'Result' : 'Strokes'}<input type="number" id="run-result-${i}" min="0" max="${d.score === 'made' ? d.outOf : 200}" inputmode="numeric" aria-label="${esc(d.name)} result">${d.score === 'made' ? `<span>/ ${d.outOf}</span>` : ''}</label><span class="drill-stats">${esc(drillStats(d))}</span></div>`}
       </div>`).join('');

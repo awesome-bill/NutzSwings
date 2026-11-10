@@ -253,6 +253,7 @@ legend { font-size: .85rem; font-weight: 600; color: var(--muted); padding: 0; m
 .drill-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .drill-done { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: 1rem; }
 .drill-done input { width: 20px; height: 20px; accent-color: var(--green); }
+.drill-title { display: inline-flex; align-items: center; gap: 4px; }
 .drill-name { font-weight: 700; }
 .drill-meta { font-size: .82rem; color: var(--muted); }
 .drill-how { margin: 0; font-size: .88rem; color: var(--muted); }
